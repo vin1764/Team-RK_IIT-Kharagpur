@@ -17,3 +17,29 @@
 - Single-file smoke test passes.
 
 **Deferred:** onboarding (M2), nudges, Today and Inbox (M3), operating screens (M4). Their entry points stay hidden until then (`src/mvp/ready.ts`).
+
+## M2: onboarding through "Committed" ✅
+
+**Built**
+- Entry screen per persona (`#/app/start`):
+  - Hiren: demand card (315–455 a week, Simulated).
+  - Ayesha: take-home calculator, Meesho vs Amazon (Amazon fees are a team estimate).
+  - Sunita: diagnosis (2,400 views → 38 clicks; refusals 31% vs 22%) and "Fix and relist".
+- Cost check (`#/app/check`): making cost, optional margin, the pre-filled stack, a pass / near miss / not a fit / no data verdict, and TCS/TDS shown as withheld and claimable.
+- Sign-up (`#/app/signup`): seller type, then a simulated GST/Udyam check. A mismatch makes the maker not eligible for Launch Week.
+- Listing bot (`#/app/list/:sku/product|quantity|price`):
+  - Product: 3–5 photos, recognise → Confirm/Change, before/after (Simulated), editable title/attributes and packed weight.
+  - Quantity: demand card with confidence and likely share, editable minimum batch and lead time, first-lot slider down to the minimum run, stock value at cost.
+  - Price: margin → list price and take-home, live; band bar; go-live blocked above B with the reason; fees locked at dispatch; go-live checklist.
+- Fulfilment (`#/app/list/:sku/fulfilment`): fee at today's node size. Ship-myself is recommended under ₹175 or with no node; otherwise "Pack Point waits; ship yourself meanwhile" until 40 makers.
+- Launch (`#/app/launch`): order book (cap B, expected orders, first lot, dates), the commit button, the stock-ready checklist, the live dashboard and the day-30 result card.
+- Today shows the setup checklist with "Continue setup".
+- Mobile: the demo clock collapses to a pill and the tabs stay pinned.
+
+**Tests**
+- Unit tests 52/52; build OK.
+- Crawler: 20 routes, 208 clicks.
+- New `onboarding.spec.ts`: all three accounts go from login to "Committed" by clicking. Hiren's numbers check out: break-even ₹132, list ₹148, take-home ₹15, first lot 150.
+- MVP state test and single-file smoke test pass.
+
+**Deferred:** none for M2.

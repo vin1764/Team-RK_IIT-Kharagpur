@@ -20,6 +20,9 @@ export default function More() {
         <Go to="/app" className="mt-2 block text-sm font-semibold text-magenta">
           {v.t.switchAccount} →
         </Go>
+        <Go to="/" className="mt-1 block text-sm font-semibold text-magenta">
+          Exit the demo (home) →
+        </Go>
       </Card>
       <Card tone={esc ? 'orange' : 'white'}>
         <H2>{v.t.escalation}</H2>

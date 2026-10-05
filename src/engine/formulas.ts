@@ -276,6 +276,10 @@ export function likelyShare(
   };
 }
 
+/** Confidence from the number of past launches behind a likely share: < min → Low, < 2 × min → Medium, else High. */
+export const demandConfidence = (pastLaunches: number, minHistory = C.LIKELY_SHARE_MIN_HISTORY.value): Confidence =>
+  pastLaunches < minHistory ? 'Low' : pastLaunches < 2 * minHistory ? 'Medium' : 'High';
+
 /** Expected daily orders per SKU = open gap (per week) ÷ 7 × likely share. */
 export const expectedDailyPerSku = (openGapPerWeek: number, share: number) => (openGapPerWeek / 7) * share;
 

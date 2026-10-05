@@ -267,6 +267,8 @@ export const C = {
   ESCALATION_CALL_TIME: k('11 am', 'time', 'Category manager call slot (next day)', 'Demo setting', 'Synthetic'),
   PREPAID_CHECK_EVERY_DAYS: k(7, 'days', 'Refusal-rate check cadence for the prepaid nudge', 'Growth loop design', 'Team model'),
   REFUSAL_WINDOW_DAYS: k(14, 'days', 'Refusal rate measured over this window', 'Growth loop design', 'Team model'),
+  DEMAND_PAST_LAUNCHES: k(7, 'past launches', 'Past launches of the same product type behind the likely share (demo history)', 'Synthetic launch history', 'Synthetic'),
+  SAMPLE_PHOTOS: k<Range>({ min: 3, max: 5 }, 'photos', 'Sample photos the listing bot asks for', 'Listing bot design', 'Team model'),
   GATE3_MAX_COVER_DAYS: k(21, 'days of cover', 'Batches landing within this many days of Gate 3 are capped so the maker holds at most this much cover at the scale-or-stop decision', 'Growth loop design', 'Team model'),
   EXPANSION_AFTER_DAYS: k(7, 'days', 'Make to demand: a switched-in SKU selling for this long triggers the next open-gap suggestion (if capacity allows)', 'Growth loop design', 'Team model'),
   KAM_ESCALATION_RATE: k(0.1, 'share of makers', 'Makers expected to need a KAM case in a cohort (pilot assumption)', 'Team estimate', 'Team estimate'),

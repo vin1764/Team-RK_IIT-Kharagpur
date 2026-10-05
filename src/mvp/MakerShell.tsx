@@ -43,7 +43,7 @@ function PhoneBox({ children, desktop }: { children: ReactNode; desktop: boolean
     window.addEventListener('resize', measure);
     return () => window.removeEventListener('resize', measure);
   }, [desktop]);
-  if (!desktop) return <div className="flex min-h-[100dvh] w-full flex-col bg-[#f6f2f4]">{children}</div>;
+  if (!desktop) return <div className="flex h-[100dvh] w-full flex-col overflow-hidden bg-[#f6f2f4]" role="region" aria-label="Maker app">{children}</div>;
   return (
     <div ref={ref} style={{ width: 390, height: h }} className="flex shrink-0 flex-col overflow-hidden rounded-[36px] border-[8px] border-ink bg-[#f6f2f4] shadow-2xl" role="region" aria-label="Maker app">
       {children}
@@ -122,7 +122,7 @@ function StageBanner({ v }: { v: AccountView }) {
 
 /** Demo controls: never inside the phone UI. */
 function DemoClock({ v, desktop }: { v: AccountView; desktop: boolean }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(desktop);
   const [confirm, setConfirm] = useState(false);
   const setDay = useMvp((s) => s.setDay);
   const reset = useMvp((s) => s.reset);
@@ -170,6 +170,13 @@ function DemoClock({ v, desktop }: { v: AccountView; desktop: boolean }) {
       )}
     </div>
   );
+  if (!desktop && !open) {
+    return (
+      <button type="button" onClick={() => setOpen(true)} className="fixed bottom-20 right-3 z-50 flex items-center gap-1 rounded-full border-2 border-plum bg-white px-3 py-2 text-sm font-semibold text-plum shadow-lg" data-testid="demo-open">
+        <CalendarClock size={16} aria-hidden /> {dayLabel(v.day)} <ChevronUp size={16} aria-hidden />
+      </button>
+    );
+  }
   if (!desktop) {
     return (
       <div className="fixed inset-x-0 bottom-0 z-50 rounded-t-2xl border-t-2 border-plum bg-white p-3 shadow-2xl" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' }} role="region" aria-label="Demo controls">
@@ -244,9 +251,9 @@ function MeeshoSees({ v }: { v: AccountView }) {
   );
 }
 
-function TopBar({ signedIn }: { signedIn: boolean }) {
+function TopBar({ signedIn, hideOnPhone }: { signedIn: boolean; hideOnPhone: boolean }) {
   return (
-    <div className="flex items-center justify-between gap-2 bg-plum-deep px-4 py-2 text-sm text-white">
+    <div className={`${hideOnPhone ? 'hidden md:flex' : 'flex'} items-center justify-between gap-2 bg-plum-deep px-4 py-2 text-sm text-white`}>
       <Go to="/" className="font-display text-lg font-bold">
         Meesho Factory · Maker app
       </Go>
@@ -308,7 +315,7 @@ export default function MakerShell() {
   }, []);
   return (
     <main className="min-h-screen bg-cream text-ink">
-      <TopBar signedIn={!login} />
+      <TopBar signedIn={!login} hideOnPhone={!login} />
       {login ? <Login /> : <Signed id={id!} desktop={desktop} />}
     </main>
   );

@@ -18,3 +18,11 @@ Decisions taken where MVP.md or CLAUDE.md was unclear. Each one is the option th
 ## Layout
 
 8. **Phone frame on desktop.** The frame is 390 px wide. Its height is 844 px, or less when the window is shorter, so the whole phone and the demo controls fit at 1366×768 with no scrolling (projector check). On screens under 768 px wide the app is full-screen and the demo controls become a bottom sheet.
+
+## Onboarding (M2)
+
+9. **The cost check is for the hero SKU.** Hiren's second launch SKU (the sipper) gets its numbers in the listing bot's price step. The making cost the maker types replaces the hero's in every later screen.
+10. **Edits vs the simulation.** Margins, lots, minimum batch and lead time can be edited, and the edits are saved and shown. The 90-day run stays the precomputed persona run, which uses the recommended values, so the demo stays deterministic.
+11. **The seller-type check is simulated.** Every persona's Udyam record says "manufacturer". Choosing wholesaler or reseller shows a mismatch and "Not eligible for Launch Week"; the maker can change the answer.
+12. **Demand confidence** comes from `demandConfidence(DEMAND_PAST_LAUNCHES)`, which is 7 synthetic past launches → Medium.
+13. **Sample photos** are synthetic placeholder tiles. The "cleaned" version is tagged Simulated.
