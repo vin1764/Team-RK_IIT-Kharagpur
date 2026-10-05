@@ -126,3 +126,20 @@ Cohort (Hiren and Ayesha's launch, 36 makers):
 Sunita's launch (45 makers): 9.7%, 82%, 73%, 53%. Scale bridge: ₹658.8 Cr vs the deck's ₹657 Cr.
 
 **Tests:** 108 unit tests; 20 e2e tests including the new `ops.spec.ts`; both crawls green.
+
+## M6: QA and ship ✅ (deploy not run from here)
+
+- **Copy audit:** no "lowest", "cheapest", "Direct from factory" or "Verified factory". "Guarantee" appears only as "a forecast, not a guarantee". "Sale" appears only in the B rule that excludes sale days, never as buyer framing.
+- **Screen checks:**
+  - 1366×768: the phone frame fits the window height and the demo controls sit beside it, with no scrolling.
+  - 390×844: full-screen app, pinned tabs, and the demo clock as a pill that opens a bottom sheet.
+- **Hindi:** the toggle works on all 15 maker screens (new e2e test checks Hindi titles and tabs).
+- **No console errors:** both crawls and every flow test fail on any page error or console error.
+- **Builds:** `dist/` and `dist-single/index.html` both build. `vercel.json` added.
+- **README:** a 3-minute MVP demo script, local commands and Vercel deploy steps.
+- **Final results:**
+  - 108/108 unit tests.
+  - 21/21 e2e tests (2 screenshot tests skip unless `SHOTS` is set).
+  - Crawls: 27 routes and 335 clicks from `#/`; 77 account routes and 1,016 clicks mid-story.
+  - The mid-story crawl failed once with `ERR_NETWORK_IO_SUSPENDED` (the OS suspended network I/O) and passed on rerun.
+- **Deferred:** the Vercel deploy itself (needs the user's Vercel login).
