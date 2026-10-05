@@ -45,3 +45,9 @@ Decisions taken where MVP.md or CLAUDE.md was unclear. Each one is the option th
 24. **Returns** list the last 28 days, plus returns arriving tomorrow (in transit). Swaps caught by weight at the node get their own row.
 25. **Make-to-demand listings** (casserole, lunch box) open the listing bot pre-filled, since the maker's photos and details already exist. After the fulfilment step they go to the product page, not back to the launch flow.
 26. **A SKU shows "Stop"** from the day the engine flags it a slow seller, or once the maker taps "Stop it".
+
+## Ops console and engine fixes (M5)
+
+27. **Pack-later stock** counts as cash in stock only once it is made (at the launch stock-in). Before this fix, Hiren and Ayesha showed ₹11–12k of cash in stock from day −14, which broke "nothing before it exists".
+28. **Ops tabs** follow MVP.md section 5. Cohort metrics appear as each one becomes measurable (day 30, 45, 60, 90); "makers active at day 30" has no target, so none is shown. Stick rate is the selected maker's own, since the cohort record has no stick rate.
+29. **Section 6 items already done** in the earlier review round and now unit-tested: the ₹265 split, the B table without "your listing" before listing, the ledger in orders/week, the Pack Point fee at the current node size, the Gate 2 rule, Sunita's Tighten → Invest, the scale bridge to ₹657 Cr and the metric labels.

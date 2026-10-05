@@ -15,9 +15,10 @@ import { PanelTitle } from '../journey/parts';
 import { inr, num, pctText, dayLabel } from '../lib/format';
 import { SectionPage } from './SectionPage';
 import { NudgeLog } from '../ops/NudgeLog';
+import { CohortMetrics, ManagerLoad, NodeQueue, OrderBook } from '../ops/OpsPanels';
 import { useMvp } from '../mvp/state';
 
-const TABS = ['Demand engine', 'Ledger', 'Pack Point', 'Launch', 'Coach & KAM', 'Cohort'] as const;
+const TABS = ['Demand engine', 'Ledger', 'Launch Week', 'Pack Point node', 'Coach & escalation', 'Cohort metrics'] as const;
 const OPS_TABS = ['Nudge log', ...TABS] as const;
 type Tab = (typeof OPS_TABS)[number];
 
@@ -237,6 +238,7 @@ export default function ControlRoom({ ops = false }: { ops?: boolean }) {
         <span className="rounded-full bg-plum px-3 py-1 text-sm font-bold text-white" data-testid="as-of">
           As of {dayLabel(asOf)}
         </span>
+        {ops && <span className="text-xs text-grey">synced to {p.name.split(' ')[0]}’s demo clock in the maker app</span>}
         <input
           type="range"
           min={C.TIMELINE_DAYS.value.min}
@@ -266,9 +268,17 @@ export default function ControlRoom({ ops = false }: { ops?: boolean }) {
             <Ledger />
           </JourneyContext.Provider>
         )}
-        {tab === 'Pack Point' && <PackPoint asOf={asOf} />}
-        {tab === 'Launch' && (
+        {tab === 'Pack Point node' && (
+          <div className="space-y-4">
+            <NodeQueue asOf={asOf} />
+            <PackPoint asOf={asOf} />
+          </div>
+        )}
+        {tab === 'Launch Week' && (
           <div className="grid gap-6 xl:grid-cols-2">
+            <div className="xl:col-span-2">
+              <OrderBook asOf={asOf} />
+            </div>
             <JourneyContext.Provider value={ctxAt(7, Math.max(asOf, live.min))}>
               <Districts />
             </JourneyContext.Provider>
@@ -286,15 +296,23 @@ export default function ControlRoom({ ops = false }: { ops?: boolean }) {
             </div>
           </div>
         )}
-        {tab === 'Coach & KAM' && <CoachKam asOf={asOf} />}
-        {tab === 'Cohort' && (
-          asOf >= C.GATE_DAYS.value[2]! ? (
-            <JourneyContext.Provider value={ctxAt(13, asOf)}>
-              <Cohort />
-            </JourneyContext.Provider>
-          ) : (
-            <NotYet what="Gate 3 (cohort metrics vs targets)" day={C.GATE_DAYS.value[2]!} />
-          )
+        {tab === 'Coach & escalation' && (
+          <div className="space-y-4">
+            <ManagerLoad />
+            <CoachKam asOf={asOf} />
+          </div>
+        )}
+        {tab === 'Cohort metrics' && (
+          <div className="space-y-4">
+            <CohortMetrics asOf={asOf} pid={pid} />
+            {asOf >= C.GATE_DAYS.value[2]! ? (
+              <JourneyContext.Provider value={ctxAt(13, asOf)}>
+                <Cohort />
+              </JourneyContext.Provider>
+            ) : (
+              <NotYet what="Gate 3 (the scale decision)" day={C.GATE_DAYS.value[2]!} />
+            )}
+          </div>
         )}
       </div>
     </SectionPage>

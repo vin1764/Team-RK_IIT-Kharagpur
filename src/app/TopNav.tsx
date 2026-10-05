@@ -1,4 +1,5 @@
 import { PlayCircle } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import { Go } from './Go';
 import { NAV_PAGES } from './pages';
 import { useApp } from './store';
@@ -6,12 +7,13 @@ import { TourBar } from './TourBar';
 
 export function TopNav() {
   const setTourStep = useApp((s) => s.setTourStep);
+  const ops = useLocation().pathname === '/ops';
   return (
     <header className="sticky top-0 z-40 bg-plum text-white shadow-md">
       <div className="mx-auto flex max-w-[1800px] items-center justify-between gap-4 px-4 py-2">
         <Go to="/" className="flex items-baseline gap-2" label="Home: choose a surface">
           <span className="font-display text-xl font-bold">Meesho C2M</span>
-          <span className="rounded-full bg-white/15 px-2 py-0.5 text-xs">Case notes</span>
+          <span className="rounded-full bg-white/15 px-2 py-0.5 text-xs">{ops ? 'Ops console' : 'Case notes'}</span>
           <span className="hidden text-xs text-white/70 md:inline">Team RK · IIT Kharagpur</span>
         </Go>
         <button

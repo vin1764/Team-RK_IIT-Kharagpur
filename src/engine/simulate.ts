@@ -324,6 +324,8 @@ interface SkuState {
   productFixApplied: boolean;
   lots: Lot[];
   packLater: number;
+  /** The pack-later units have been made (paid for): only then are they cash in stock. */
+  packLaterMade: boolean;
   launchLot: number;
   inbound: Scheduled<{ units: number; fixed: boolean; launch?: boolean }>[];
   deliveries: Scheduled<{ count: number; unfixedShare: number; price: number; B: number }>[];
@@ -592,6 +594,7 @@ function run(base: PersonaSpec, options: SimOptions): SimResult {
       productFixApplied: false,
       lots: [],
       packLater: s.packLaterLot,
+      packLaterMade: false,
       launchLot,
       inbound: [],
       deliveries: [],
@@ -846,6 +849,7 @@ function run(base: PersonaSpec, options: SimOptions): SimResult {
         const isLaunchLot = !!a.v.launch;
         if (isLaunchLot) {
           if (s.packLater > 0) makingPaidCum += s.packLater * makeCost;
+          s.packLaterMade = true;
           emit({
             day: d,
             kind: 'stockIn',
@@ -1291,7 +1295,7 @@ function run(base: PersonaSpec, options: SimOptions): SimResult {
         creditsCum,
         takeHome: takeHomeToday,
         takeHomeCum,
-        cashInStock: skus.reduce((a, s) => a + (unitsOnHand(s) + s.packLater) * s.spec.stack.makingCost, 0),
+        cashInStock: skus.reduce((a, s) => a + (unitsOnHand(s) + (s.packLaterMade ? s.packLater : 0)) * s.spec.stack.makingCost, 0),
         makingPaidCum,
         netCashCum: payoutsCum + cashInExtraCum - makingPaidCum - cashOutCum,
         cashOutCum,

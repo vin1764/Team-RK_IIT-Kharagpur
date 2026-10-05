@@ -100,3 +100,29 @@
   - earnings lines.
 - New mid-story crawl: all three accounts on day 78, 77 routes, 1,016 clicks.
 - Both crawls, all e2e tests and 94 unit tests pass.
+
+## M5: ops console and section 6 fixes ✅
+
+**Built**
+- `#/ops` tabs: Nudge log · Demand engine · Ledger · Launch Week (new order book and slot allocation across the three makers, district control, Gate 1, fault) · Pack Point node (new inbound and storage queue, fee curve, partner P&L, returns queue) · Coach & escalation (ladder, makers per category manager) · Cohort metrics vs targets (by measurement day, then the Gate 3 decision).
+- "As of Day N" follows the selected maker's demo clock, and moving it moves the clock.
+- Engine fix: no cash in stock before the commit (pack-later units). Snapshot regenerated.
+- New `tests/unit/engine.test.ts` (14 tests) for the section 6 rules, plus a check that the shipped snapshot equals a fresh run.
+
+**Day-90 numbers** (`npx vite-node scripts/day90.ts`)
+
+| | Orders | Earned | Paid out | Stock left (cover) | Counterfactual stock | Gates |
+|---|---|---|---|---|---|---|
+| Hiren | 1,434 | ₹15,780 | ₹1,02,645 | 332 (11.1 days) | 423 | G1 Invest · G2 Tighten (stick 0.96) · G3 Invest |
+| Ayesha | 692 | ₹33,925 | ₹1,35,113 | 155 (17.0 days) | 430 | G1 Invest · G2 Tighten (stick 0.96) · G3 Invest |
+| Sunita | 1,005 | ₹11,002 | ₹54,321 | 264 (18.9 days) | 406 | G1 Tighten → rerun Invest · G2 Continue (1.10) · G3 Invest |
+
+Cohort (Hiren and Ayesha's launch, 36 makers):
+- price drop 9.0% vs ≥ 8%
+- active at day 60: 78% vs ≥ 70%
+- active at day 90: 69% vs ≥ 60%
+- second lot by day 45: 69% vs ≥ 50%
+
+Sunita's launch (45 makers): 9.7%, 82%, 73%, 53%. Scale bridge: ₹658.8 Cr vs the deck's ₹657 Cr.
+
+**Tests:** 108 unit tests; 20 e2e tests including the new `ops.spec.ts`; both crawls green.
