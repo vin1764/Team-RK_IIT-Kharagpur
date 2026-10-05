@@ -8,7 +8,6 @@ import { Go } from '../app/Go';
 import { buildCtx, JourneyContext } from '../journey/ctx';
 import { DemandEngine, Districts, Gate1, Ledger, Cohort, Fault } from '../journey/ControlPanels';
 import { runSim } from '../app/useSim';
-import { useApp } from '../app/store';
 import { Chip } from '../components/Chip';
 import { MetricTile } from '../components/MetricTile';
 import { Num } from '../components/FormulaPopover';
@@ -23,8 +22,7 @@ function PackPoint({ asOf }: { asOf: number }) {
   const [makers, setMakers] = useState(C.PP_REFERENCE_MAKERS.value);
   const cost = packPointCost(makers);
   const fee = packPointFeeTier(makers);
-  const seed = useApp((s) => s.seed);
-  const hero = runSim({ personaId: 'hiren', seed });
+  const hero = runSim({ personaId: 'hiren' });
   const node = PERSONA_SPECS[0]!.node!;
   const pnl = packPointPnl(makers);
   const breakEven = packPointBreakEvenMakers();
@@ -151,9 +149,8 @@ function PackPoint({ asOf }: { asOf: number }) {
 }
 
 function CoachKam({ asOf }: { asOf: number }) {
-  const seed = useApp((s) => s.seed);
   const rows = PERSONA_SPECS.flatMap((p) =>
-    runSim({ personaId: p.id, seed })
+    runSim({ personaId: p.id })
       .events.filter((e) => ['coachNudge', 'fixRecheck', 'kamCase', 'newRule'].includes(e.kind) && e.day <= asOf)
       .map((e) => ({ p, e })),
   ).sort((a, b) => a.e.day - b.e.day);

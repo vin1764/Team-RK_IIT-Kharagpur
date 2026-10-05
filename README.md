@@ -1,84 +1,58 @@
 # Meesho C2M: factories to buyers (Team RK, IIT Kharagpur)
 
-A clickable, fully offline prototype showing how an integrated manufacturer is found, onboarded,
-launched and grown on Meesho over 90 days, and what changes for the **maker**, the **buyer** and
-**Meesho**, number by number. All data is synthetic; every number traces to `src/data/constants.ts`
-or a formula in `src/engine/formulas.ts`.
+A clickable, fully offline prototype of our solution: how an integrated manufacturer is found,
+onboarded, launched and grown on Meesho over 90 days, and what changes for the **maker**, the
+**buyer** and **Meesho**. All data is synthetic and **hardcoded** (`src/data/snapshot.json` and
+`src/data/constants.ts`); nothing is simulated in the browser.
 
 ## Open it
 
-**No install (recommended for judging):** double-click `dist-single/index.html`. It is one
-self-contained file (fonts and code inlined), works offline, and uses hash routing
-(`index.html#/journey/hiren`), so every page works from disk.
+Double-click **`dist-single/index.html`**: one self-contained file, works offline, no install.
+(Not the `index.html` at the top of the folder: that is the developer entry point and shows a blank
+page when opened directly.) Use Chrome or Edge; F11 for full screen when presenting.
 
-**Static host:** upload `dist/` to Netlify, Vercel or GitHub Pages as-is (relative paths, hash routes).
+To host it, upload `dist/` to Netlify, Vercel or GitHub Pages as-is.
 
-**From source** (Node 20+):
+## The 4-minute judge tour
+
+Click **Judge tour** (top right) or **Start judge tour** on the home page; it starts at once.
+**→** or the arrow in the caption bar moves on, **←** goes back, **Esc** or **✕** exits. 14 stops:
+
+1. **Home**: ₹72 middlemen take per ₹265 order, ~43,000 integrated makers, Hiren’s monthly earnings by day 90; the formula.
+2. **Problem**: the ₹265 order (₹138 factory, ₹55 logistics/RTO/fee, ₹9 + ₹18 + ₹45 middlemen).
+3. **Categories**: drag the weights; Apparel rises but still waits.
+4. **Personas**: three cohorts, one solution, 90-day outcome vs today’s Meesho.
+5. **Journey ch 0**: the demand engine finds the gap and computes benchmark B.
+6. **Journey ch 4**: cost check (₹132 ↔ ₹160) and the listing bot; a price above B blocks go-live.
+7. **Journey ch 5**: who packs it? Self-ship now; the Pack Point once the node passes 40 makers.
+8. **Journey ch 7**: Factory Launch Week vs matched control districts.
+9. **Journey ch 8**: returns, RTO and fault attribution.
+10. **Journey ch 9**: Gate 1 (Invest / Tighten / Stop).
+11. **Journey ch 10**: day-33 restock (11/day → reorder at 77 → batch 230) and the one-tap coach fix.
+12. **Journey ch 12**: stop the slow SKU, switch to the casserole, add a lunch box.
+13. **Economics**: where the buyer’s rupee goes and the Pack Point partner P&L.
+14. **Impact**: day-90 scorecards and the bridge from one maker to the deck’s ₹657 Cr.
+
+## Exploring
+
+- **Journey**: drag the timeline or use ‹ › / ← → through day −14 to 90; switch Hiren / Ayesha /
+  Sunita; **Focus** enlarges a view; **Without our solution** overlays today’s Meesho on the chart.
+  The phones are clickable (listing bot, checkout, one-tap coach fix).
+- **Control room**: tabs (demand engine, ledger, Pack Point, launch, coach & KAM, cohort) and a day selector.
+- **Economics**: per-order breakdown per party and the Pack Point P&L slider.
+
+## Pages
+
+Home · Problem · Categories · Personas (+ one page per maker) · Journey · Control room · Economics · Impact.
+
+## For developers
 
 ```bash
 npm install
 npm run dev            # local dev server
 npm run build          # dist/
 npm run build:single   # dist-single/index.html
-npm test               # formula + engine-determinism unit tests
-npx playwright install chromium && npm run e2e   # link crawler and page checks
-npm run report:phase1  # gate results, day-33 restock, cohort price drop (console)
-```
-
-## The 4-minute demo
-
-Click **Judge tour** (top right) → **Start the tour**, then use **→** to advance (← back, Esc exits).
-13 stops:
-
-1. **Landing**: the formula *makers × active at day 30 × orders per maker × price drop per order × retained at day 90*.
-2. **Problem**: the ₹265 order (middlemen take ₹72) and where each PS question is answered.
-3. **Category Lab**: drag the weights; Apparel rises but still waits (fails the buyer tests).
-4. **Personas**: three cohorts, one engine, 90-day outcome vs today's Meesho.
-5. **Journey ch 0**: the demand engine finds the gap and computes benchmark B.
-6. **Journey ch 2**: cost check, break-even ₹132 ↔ B ₹160.
-7. **Journey ch 4**: listing bot; edit the margin, a price above B blocks go-live.
-8. **Journey ch 7**: Factory Launch Week, launch vs control districts.
-9. **Journey ch 9**: Gate 1 (Invest / Tighten / Stop), rule fixed in advance.
-10. **Journey ch 10**: day-33 restock (11/day → reorder at 77 → batch 230) and the one-tap coach fix.
-11. **Journey ch 12**: stop the slow SKU, switch to the ₹265 casserole via the Pack Point.
-12. **Break-it lab**: five scenarios, each with the guardrail that fired.
-13. **Impact**: day-90 scorecards, the formula with real values, ×620 makers and the 3,050 scale target.
-
-**Cluster Pack Point:** journey chapters 5–8 (fee curve, inbound weigh-in, pick/pack/QC queue, fault attribution), Control room → Pack Point tab (flow, A/B/C grading, dwell, slow stock, who uses the node), and Economics (partner P&L slider by makers pooled, per-order breakdown, cash view).
-
-**Presenting tips:** on the journey, use **Focus** on any view to enlarge it for the projector; tick
-**Without our solution** to overlay the counterfactual on the chart; turn on **Verify** (header) and
-click any underlined number to see its formula, inputs, source and status.
-
-## What's synthetic
-
-- The three makers (Hiren, Ayesha, Sunita), their SKUs, costs beyond the deck's worked example,
-  buyers, districts, outreach lists and the 30–50-maker cohorts.
-- Every order, return, RTO, payout and gate result: produced by a seeded simulation
-  (`src/engine/simulate.ts`). Same seed → same story; change it under ⚙ Settings.
-- "AI" steps (demand engine, listing bot, coach) are simulations and carry a **Simulated** tag.
-- Forecasts are forecasts, not guarantees.
-
-## Source / status legend (Verify mode and `#/verify`)
-
-| Status | Meaning |
-|---|---|
-| **Meesho filing** | From Meesho's filing (orders, contribution per order, COD mix, AOV) |
-| **Public policy (seller guides)** | Public Meesho seller guides / government notifications (commission, payout cycle, TCS/TDS, GST) |
-| **Mentor input** | From our Meesho mentor (dispatch SLA, boost taper, swap rule, Valmo scope) |
-| **Team model** | Our own model or design rule (Pack Point costs, gates, targets) |
-| **Team estimate** | An estimate to confirm in the pilot (simulation assumptions, Amazon fees, N for benchmark B) |
-| **Synthetic** | Generated persona / scenario data |
-
-`#/verify` lists every constant with its source and status, plus a **Meesho policy checks** table.
-
-## Map of the code
-
-```
-src/data/constants.ts     every number, with value / unit / label / source / status
-src/engine/formulas.ts    every derived number (pure, unit-tested)
-src/engine/simulate.ts    day −14 → 90 simulation; scenarios; counterfactual
-src/data/                 personas, categories, levers, roadmap, generators
-src/journey/              the 14 chapters: maker phone, control room, buyer phone
-src/views/                one file per page
+npm run snapshot       # regenerate the hardcoded data (src/data/snapshot.json) from the engine
+npm test               # formula unit tests
+npx playwright install chromium && npm run e2e   # link crawler + single-file smoke test
 ```

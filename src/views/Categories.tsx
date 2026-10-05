@@ -5,7 +5,6 @@ import { C } from '../data/constants';
 import { CATEGORY_CARDS, SCORECARD, type CategoryCard, type CategoryRatings } from '../data/categories';
 import { categoryScore, listPrice, middlemanMargin } from '../engine/formulas';
 import { runCategorySim } from '../app/useSim';
-import { useApp } from '../app/store';
 import { DashedPanel } from '../components/DashedPanel';
 import { TitleTab } from '../components/TitleTab';
 import { Chip } from '../components/Chip';
@@ -128,8 +127,7 @@ function Scorecard() {
 }
 
 function SimResultCard({ c }: { c: CategoryCard }) {
-  const seed = useApp((s) => s.seed);
-  const r = runCategorySim(c.id, seed);
+  const r = runCategorySim(c.id);
   if (!r || !c.sim) return null;
   const k = r.kpis;
   const g = r.gates.g1!;

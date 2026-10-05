@@ -1,4 +1,3 @@
-import { useApp } from '../app/store';
 import { runSim } from '../app/useSim';
 import { C } from '../data/constants';
 import { C2M_TERMS } from '../data/copy';
@@ -13,8 +12,7 @@ import { inr, num, pctText } from '../lib/format';
 import { SectionPage } from './SectionPage';
 
 export default function Impact() {
-  const seed = useApp((s) => s.seed);
-  const runs = PERSONA_SPECS.map((p) => ({ p, r: runSim({ personaId: p.id, seed }), cf: runSim({ personaId: p.id, seed, counterfactual: true }) }));
+  const runs = PERSONA_SPECS.map((p) => ({ p, r: runSim({ personaId: p.id }), cf: runSim({ personaId: p.id, counterfactual: true }) }));
   const hero = runs[0]!.r;
   const cohort = cohortMetrics(hero.cohort);
   const ordersPerMaker = runs.reduce((a, x) => a + x.r.kpis.meeshoOrders, 0) / runs.length;

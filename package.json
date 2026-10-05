@@ -13,7 +13,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "playwright test",
-    "report:phase1": "vite-node scripts/phase1-report.ts"
+    "snapshot": "vite-node scripts/make-snapshot.ts"
   },
   "dependencies": {
     "@fontsource/cardo": "^5.1.0",

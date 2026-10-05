@@ -105,68 +105,8 @@ export const PAGES: PageDef[] = [
     summary: 'Day-90 results per persona, the formula with real values, and what it looks like at scale.',
     contains: ['Day-90 scorecard per persona', 'The formula with values', 'Year-one ramp and scale target', 'Year-2 view'],
     ps: ['Q3', 'Q4'],
-    next: '/levers',
-    inNav: true,
-  },
-  {
-    path: '/levers',
-    nav: 'Levers',
-    title: 'Gates and levers',
-    summary: 'Four gates every lever must pass: subsidy-free, scalable, price-reducing, durable.',
-    contains: ['The 4 gates', 'The enabler rule', 'All levers considered, filterable'],
-    ps: ['Q3'],
-    next: '/break-it',
-    inNav: true,
-  },
-  {
-    path: '/break-it',
-    nav: 'Break it',
-    title: 'What-if lab',
-    summary: 'Try to break the system and see which guardrail catches it.',
-    contains: ['Scenario switches', 'What happened → guardrail fired → what it cost'],
-    ps: ['Q4'],
-    next: '/verify',
-    inNav: true,
-  },
-  {
-    path: '/verify',
-    nav: 'Verify',
-    title: 'Numbers and policy',
-    summary: 'Every constant in the prototype with its value, source and status.',
-    contains: ['Every constant: value, source, status', 'Policy checks', 'Known caveats'],
-    ps: [],
-    next: '/roadmap',
-    inNav: true,
-  },
-  {
-    path: '/roadmap',
-    nav: 'Roadmap',
-    title: '30-60-90 roadmap',
-    summary: 'Sprints A–F, with gates at day 30, 60 and 90 and their kill criteria.',
-    contains: ['Sprints A–F', 'Gates with kill criteria', 'Linked live metrics'],
-    ps: ['Q4'],
-    next: '/tour',
-    inNav: true,
-  },
-  {
-    path: '/tour',
-    nav: 'Tour',
-    title: 'Judge tour',
-    summary: 'A 4-minute guided path through the prototype. Use ← → to move.',
-    contains: ['12–14 captioned steps', '← → keys', 'Exit any time'],
-    ps: ['Q1', 'Q2', 'Q3', 'Q4'],
     next: '/',
     inNav: true,
-  },
-  {
-    path: '/styleguide',
-    nav: 'Styleguide',
-    title: 'Styleguide',
-    summary: 'Design-system components, rendered with values from constants.ts and formulas.ts.',
-    contains: [],
-    ps: [],
-    next: '/',
-    inNav: false,
   },
 ];
 
@@ -177,7 +117,7 @@ export const page = (path: string): PageDef => {
 };
 
 /** Pages built so far. Unfinished pages keep their route (no dead links) but stay out of the nav and tiles. */
-export const READY = new Set(['/', '/problem', '/categories', '/personas', '/personas/:id', '/journey/:id', '/control-room', '/economics', '/impact', '/levers', '/break-it', '/verify', '/roadmap', '/tour']);
+export const READY = new Set(['/', '/problem', '/categories', '/personas', '/personas/:id', '/journey/:id', '/control-room', '/economics', '/impact']);
 
 export const NAV_PAGES = PAGES.filter((p) => p.inNav && READY.has(p.path));
 
@@ -194,7 +134,6 @@ export const PS_MAP: Record<'Q1' | 'Q2' | 'Q3' | 'Q4', { label: string; to: stri
   ],
   Q4: [
     { label: 'Control room', to: '/control-room' },
-    { label: 'Break-it lab', to: '/break-it' },
-    { label: 'Roadmap & gates', to: '/roadmap' },
+    { label: 'Economics', to: '/economics' },
   ],
 };

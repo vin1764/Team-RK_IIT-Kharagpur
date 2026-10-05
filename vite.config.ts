@@ -18,8 +18,7 @@ export default defineConfig(({ mode }) => {
       assetsInlineLimit: single ? 100_000_000 : 4096,
     },
     test: {
-      // Speed mode: formulas + engine determinism only. The full suite (`npm run test:all`) returns in Sprint D.
-      include: process.env.TEST_ALL ? ['tests/unit/**/*.test.ts'] : ['tests/unit/formulas.test.ts', 'tests/unit/determinism.test.ts'],
+      include: ['tests/unit/**/*.test.ts'],
       environment: 'node',
     },
   };

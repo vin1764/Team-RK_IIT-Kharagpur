@@ -1,32 +1,33 @@
-import { useApp } from './store';
-import { simulate, simulateCategory, type SimOptions, type SimResult } from '../engine/simulate';
+/**
+ * Hardcoded data: every run the prototype shows was computed once (scripts/make-snapshot.ts) and is
+ * read from src/data/snapshot.json. Nothing is simulated in the browser.
+ */
+import snapshotRaw from '../data/snapshot.json?raw';
+import type { SimResult } from '../engine/simulate';
 import type { PersonaId } from '../data/personas';
 import type { CategoryId } from '../data/categories';
 
-const cache = new Map<string, SimResult>();
-
-/** Memoised simulation run: same options → same (cached) result. */
-export function runSim(o: SimOptions): SimResult {
-  const key = JSON.stringify(o);
-  let r = cache.get(key);
-  if (!r) {
-    r = simulate(o);
-    cache.set(key, r);
-  }
-  return r;
+interface Snapshot {
+  personas: Record<PersonaId, { base: SimResult; cf: SimResult }>;
+  categories: Partial<Record<CategoryId, SimResult | null>>;
 }
 
-const catCache = new Map<string, SimResult | null>();
-export function runCategorySim(id: CategoryId, seed: number): SimResult | null {
-  const key = `${id}|${seed}`;
-  if (!catCache.has(key)) catCache.set(key, simulateCategory(id, seed));
-  return catCache.get(key)!;
+const snapshot = JSON.parse(snapshotRaw) as Snapshot;
+
+/** A persona's run (with our solution, or today's Meesho if `counterfactual`). */
+export function runSim(o: { personaId: PersonaId; counterfactual?: boolean }): SimResult {
+  const p = snapshot.personas[o.personaId];
+  return o.counterfactual ? p.cf : p.base;
 }
 
-/** The persona's base run and its "without our solution" counterfactual, at the current seed. */
+/** A launch category's 30-day run (null for categories that don't launch). */
+export function runCategorySim(id: CategoryId): SimResult | null {
+  return snapshot.categories[id] ?? null;
+}
+
+/** The persona's run and its "without our solution" counterfactual. */
 export function usePersonaRuns(personaId: PersonaId) {
-  const seed = useApp((s) => s.seed);
-  return { base: runSim({ personaId, seed }), cf: runSim({ personaId, seed, counterfactual: true }) };
+  return { base: runSim({ personaId }), cf: runSim({ personaId, counterfactual: true }) };
 }
 
 /** Cumulative series for the with/without chart. */

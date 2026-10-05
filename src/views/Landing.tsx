@@ -38,8 +38,8 @@ function HeroPhone({ perMonth, orders }: { perMonth: number; orders: number }) {
 
 export default function Landing() {
   const def = page('/');
-  const seed = useApp((s) => s.seed);
-  const hero = runSim({ personaId: 'hiren', seed });
+  const setTourStep = useApp((s) => s.setTourStep);
+  const hero = runSim({ personaId: 'hiren' });
   const d90 = hero.days[hero.days.length - 1]!;
   const d60 = hero.days.find((d) => d.day === d90.day - C.DAYS_PER_MONTH.value)!;
   const perMonth = d90.money.takeHomeCum - d60.money.takeHomeCum;
@@ -64,9 +64,15 @@ export default function Landing() {
               </div>
             ))}
           </div>
-          <Go to="/tour" className="inline-flex items-center gap-2 rounded-full bg-orange px-6 py-3 text-base font-semibold text-ink shadow hover:brightness-105">
+          <button
+            type="button"
+            onClick={() => setTourStep(0)}
+            data-testid="landing-start-tour"
+            className="inline-flex items-center gap-2 rounded-full bg-orange px-6 py-3 text-base font-semibold text-ink shadow hover:brightness-105"
+          >
             <PlayCircle size={20} aria-hidden /> Start judge tour
-          </Go>
+          </button>
+          <p className="mt-2 text-sm text-grey">15 steps, about 4 minutes. Use → / ← or the arrows in the caption bar; Esc or ✕ exits.</p>
         </div>
         <div className="hidden justify-center lg:flex">
           <HeroPhone perMonth={perMonth} orders={orders30} />

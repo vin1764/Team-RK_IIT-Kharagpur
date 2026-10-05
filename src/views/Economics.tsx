@@ -11,7 +11,6 @@ import {
   packPointPnl,
   takeHome,
 } from '../engine/formulas';
-import { useApp } from '../app/store';
 import { runSim } from '../app/useSim';
 import { TitleTab } from '../components/TitleTab';
 import { Chip } from '../components/Chip';
@@ -170,8 +169,7 @@ function PartnerPnl() {
 }
 
 function CashView() {
-  const seed = useApp((s) => s.seed);
-  const r = runSim({ personaId: 'hiren', seed });
+  const r = runSim({ personaId: 'hiren' });
   const data = r.days.map((d) => ({
     day: d.day,
     out: Math.round(d.money.makingPaidCum),

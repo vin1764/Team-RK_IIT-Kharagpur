@@ -25,8 +25,7 @@ test('every data-nav link and button works, from #/ onward', async ({ page }) =>
   });
   page.on('pageerror', (e) => errors.push(`${hashOf(page)}: ${e.message}`));
 
-  // The hidden styleguide isn't linked from the nav, so it is seeded explicitly.
-  const queue = ['#/', '#/styleguide'];
+  const queue = ['#/'];
   const visited = new Set<string>();
   let clicks = 0;
 
@@ -56,7 +55,6 @@ test('every data-nav link and button works, from #/ onward', async ({ page }) =>
   for (const r of [
     '#/', '#/problem', '#/categories', '#/personas', '#/personas/hiren', '#/personas/ayesha', '#/personas/sunita',
     '#/journey/hiren', '#/journey/ayesha', '#/journey/sunita', '#/control-room', '#/economics', '#/impact',
-    '#/levers', '#/break-it', '#/verify', '#/roadmap', '#/tour',
   ]) {
     expect(visited, `reached ${r}`).toContain(r);
   }

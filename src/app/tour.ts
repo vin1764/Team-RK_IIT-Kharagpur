@@ -20,7 +20,6 @@ export const TOUR: TourStep[] = [
   { to: j(9), title: 'Journey · Gate 1 (day 30)', caption: 'Rule fixed in advance: stick rate, lift, sell-through, prices held → Invest, Tighten or Stop.' },
   { to: j(10), title: 'Journey · Restock + coach', caption: 'Day 33: 11/day → reorder at 77, next batch 230. Day 38: one Hindi nudge, one-tap photo fix; re-checked on day 52.' },
   { to: j(12), title: 'Journey · Make to demand', caption: 'The sipper slows → stop (stock back to his distributors) → switch to the ₹265 casserole via the Pack Point, then add a lunch box: 4 listings by day 90.' },
-  { to: '/break-it', title: 'Try to break it', caption: 'Launch flops, price raised, reseller signs up, small node, coach fix fails: each shows the guardrail that fired.' },
   { to: '/economics', title: 'Economics · Pack Point P&L', caption: 'Where the buyer’s rupee goes, and the 3PL partner’s P&L by makers pooled: ₹44 → ₹30 → ₹26 → ₹23 per delivered order.' },
   { to: '/impact', title: 'Impact and scale', caption: 'Day-90 scorecards and the bridge from one simulated maker to the deck’s ₹657 Cr. Thank you.' },
 ];
