@@ -255,6 +255,17 @@ export const C = {
   PP_STORAGE_FREE_DAYS: k(30, 'days', 'Free storage days', PACK_POINT_MODEL, 'Team model'),
   PP_STORAGE_PER_UNIT_DAY: k(0.29, '₹ / unit / day', 'Storage after the free days', PACK_POINT_MODEL, 'Team model'),
   PP_SLOW_STOCK_DECISION_DAY: k(60, 'day', 'Slow stock decided by', PACK_POINT_MODEL, 'Team model'),
+  PP_GRADE_B_SHARE: k(
+    0.3,
+    'share of resellable returns',
+    'Returns at the node graded B (resellable after repack); the rest of the resellable ones are A',
+    'Team estimate',
+    'Team estimate',
+  ),
+  PP_REPACK_COST: k(6, '₹ / unit', 'Repack cost for a grade-B return at the node', 'Team estimate', 'Team estimate'),
+  PP_SWAP_WEIGHT_GAP_G: k<Range>({ min: 40, max: 180 }, 'grams', 'Swapped returns weigh this much less than dispatch (synthetic range)', 'Synthetic', 'Synthetic'),
+  PP_INBOUND_LOTS_PER_MAKER_WEEK: k(1, 'lot / maker / week', 'One bulk lot a week per maker', PACK_POINT_MODEL, 'Team model'),
+  LAUNCH_CADENCE_DAYS: k(30, 'days', 'Launch Weeks run monthly (Launch 2 starts this many days after Launch 1)', 'Launch Week design', 'Team model'),
   PP_SHIPROCKET_BENCHMARK: k(24, '₹ / order', "Shiprocket's published fulfilment price (cross-check)", 'Shiprocket public pricing', 'Team estimate'),
   PP_REFERENCE_MAKERS: k(40, 'makers', 'Reference node size', PACK_POINT_MODEL, 'Team model'),
 

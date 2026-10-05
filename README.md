@@ -44,6 +44,8 @@ Click **Judge tour** (top right) → **Start the tour**, then use **→** to adv
 12. **Break-it lab**: five scenarios, each with the guardrail that fired.
 13. **Impact**: day-90 scorecards, the formula with real values, ×620 makers and the 3,050 scale target.
 
+**Cluster Pack Point:** journey chapters 5–8 (fee curve, inbound weigh-in, pick/pack/QC queue, fault attribution), Control room → Pack Point tab (flow, A/B/C grading, dwell, slow stock, who uses the node), and Economics (partner P&L slider by makers pooled, per-order breakdown, cash view).
+
 **Presenting tips:** on the journey, use **Focus** on any view to enlarge it for the projector; tick
 **Without our solution** to overlay the counterfactual on the chart; turn on **Verify** (header) and
 click any underlined number to see its formula, inputs, source and status.

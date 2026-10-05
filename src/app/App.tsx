@@ -8,7 +8,7 @@ import Verify from '../views/Verify';
 import Styleguide from '../views/Styleguide';
 import NotFound from '../views/NotFound';
 import Categories from '../views/Categories';
-import { Economics } from '../views/Sections';
+import Economics from '../views/Economics';
 import Problem from '../views/Problem';
 import ControlRoom from '../views/ControlRoom';
 import Impact from '../views/Impact';

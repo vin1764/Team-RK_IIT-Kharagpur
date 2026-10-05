@@ -52,6 +52,9 @@ import {
   firstRestockCheckDay,
   firstCoachDay,
   nadBreached,
+  packPointPnl,
+  packPointBreakEvenMakers,
+  gradeShareB,
   type BListing,
 } from '../../src/engine/formulas';
 import { mulberry32 } from '../../src/engine/rng';
@@ -371,6 +374,36 @@ describe('simulation formulas', () => {
     ]);
     expect(r.B).toBe(160);
     expect(r.excluded[0]!.reason).toBe('Sale days excluded');
+  });
+});
+
+describe('Pack Point partner economics', () => {
+  it('cost breakdown adds up to the monthly cost', () => {
+    for (const m of [20, 40, 60, 80]) {
+      const c = packPointCost(m);
+      const b = c.breakdown;
+      expect(b.staff + b.rent + b.consumables + b.equipment + b.utilities).toBeCloseTo(c.monthlyCost, 6);
+    }
+  });
+
+  it('at each published tier the partner earns about its 18% margin on cost', () => {
+    for (const m of [20, 40, 60, 80]) {
+      const p = packPointPnl(m);
+      expect(p.profit).toBeGreaterThan(0);
+      expect(p.revenue / p.cost - 1).toBeGreaterThan(0.15);
+      expect(p.revenue / p.cost - 1).toBeLessThan(0.21);
+    }
+  });
+
+  it('break-even node size exists and is below the reference node', () => {
+    const be = packPointBreakEvenMakers();
+    expect(be).not.toBeNull();
+    expect(be!).toBeLessThanOrEqual(C.PP_REFERENCE_MAKERS.value);
+    expect(packPointPnl(be!).profit).toBeGreaterThanOrEqual(0);
+  });
+
+  it('grade B share of resellable returns', () => {
+    expect(gradeShareB(10)).toBeCloseTo(10 * C.PP_GRADE_B_SHARE.value, 9);
   });
 });
 

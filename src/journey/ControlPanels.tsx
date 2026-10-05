@@ -20,6 +20,7 @@ import { MetricTile } from '../components/MetricTile';
 import { Num } from '../components/FormulaPopover';
 import { inr, num, pctText, dayLabel } from '../lib/format';
 import { useJourney } from './ctx';
+import { PackPointFlow } from './PackPointFlow';
 import { BandBar, KV, PanelTitle } from './parts';
 import type { GateInput } from '../engine/gates';
 
@@ -265,7 +266,9 @@ export function Node() {
         <MetricTile label="Crosses 40" value={`Week ${Math.ceil(node.crossDay / 7)}`} />
       </div>
       <FeeCurve curve={curve} at={{ makers, fee }} />
-      <p className="text-xs text-grey">One bulk lot a week → weigh-in → pick/pack/QC (photo + weight) → Valmo. Returns come back to the node, weighed and graded A/B/C.</p>
+      <div className="mt-2">
+        <PackPointFlow makers={makers} />
+      </div>
     </div>
   );
 }
@@ -316,6 +319,12 @@ export function Weeks() {
         <MetricTile label="Price cap (B)" value={inr(j.B)} />
         <MetricTile label="Stock in by" value={dayLabel(C.LAUNCH_STOCK_IN_DAY.value)} />
       </div>
+      {j.p.node && (
+        <div className="mt-3">
+          <div className="mb-1 text-xs font-semibold text-plum">Inbound weigh-in at the Rajkot node this week</div>
+          <PackPointFlow makers={j.ds.nodeMakers} ds={j.ds} ownSkuId="casserole-1500" highlight="inbound" />
+        </div>
+      )}
     </div>
   );
 }
@@ -354,6 +363,12 @@ export function Districts() {
         <MetricTile label="Launch-district orders" value={L} />
         <MetricTile label="Control-district orders" value={Cn} />
       </div>
+      {j.p.node && (
+        <div className="mt-3">
+          <div className="mb-1 text-xs font-semibold text-plum">Pack Point pick/pack/QC queue today (Launch 1 node makers; Hiren’s bottle self-ships)</div>
+          <PackPointFlow makers={j.ds.nodeMakers} ds={j.ds} ownSkuId="casserole-1500" highlight="pack" />
+        </div>
+      )}
     </div>
   );
 }
@@ -367,9 +382,16 @@ export function Fault() {
   const rto = j.sumSku((s) => (s.skuId === j.sku.id ? s.rto : 0), C.LAUNCH_LIVE_DAYS.value.min, j.day);
   const rows = [
     ['RTO (refused / unreachable)', sum((s) => s.rto), 'Nobody: no reverse shipping when dispatched on time', 'Unit back to stock'],
-    ['Customer return: not as expected / size', sum((s) => s.returnsByReason.expectation + s.returnsByReason.size), `Maker: return fee (₹${j.sku.returnFee}, by weight and zone)`, 'Graded A, restocked'],
+    ['Customer return: not as expected / size', sum((s) => s.returnsByReason.expectation + s.returnsByReason.size), `Maker: return fee (₹${j.sku.returnFee}, by weight and zone)`, pp ? `Graded A, or B after a ₹${C.PP_REPACK_COST.value} repack; restocked` : 'Graded A, restocked'],
     ['Customer return: product fault', sum((s) => s.returnsByReason.product), 'Maker: return fee + unit', 'Graded C'],
-    ['Swapped item', sum((s) => s.returnsByReason.swap), pp ? 'Buyer: weight check (−g vs dispatch) → claim denied; maker not charged' : `Maker files a claim; ~${pctText(C.CLAIM_RECOVERY_SHARE.value * 100)} recovered`, pp ? 'Original unit stays' : 'Needs unboxing evidence'],
+    [
+      'Swapped item',
+      sum((s) => s.returnsByReason.swap),
+      pp
+        ? 'Buyer: weighed at the node below dispatch weight → claim denied; maker not charged'
+        : `Self-ship: maker files a claim, ~${pctText(C.CLAIM_RECOVERY_SHARE.value * 100)} recovered. Via the Pack Point it would be caught by weight and the maker not charged.`,
+      pp ? 'Original unit stays' : 'Needs unboxing evidence',
+    ],
   ] as const;
   return (
     <div>

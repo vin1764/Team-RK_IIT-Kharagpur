@@ -340,6 +340,7 @@ export interface PackPointCost {
   areaSqft: number;
   monthlyCost: number;
   costPerOrder: number;
+  breakdown: { staff: number; rent: number; consumables: number; equipment: number; utilities: number };
 }
 
 /** Monthly cost and cost per order handled for a node with `makers` pooled. */
@@ -364,6 +365,7 @@ export function packPointCost(makers: number): PackPointCost {
     areaSqft,
     monthlyCost,
     costPerOrder: ordersPerMonth === 0 ? NaN : monthlyCost / ordersPerMonth,
+    breakdown: { staff: staffCost, rent, consumables, equipment, utilities: C.PP_UTILITIES.value },
   };
 }
 
@@ -380,6 +382,28 @@ export function packPointFeeTier(makers: number): { tierMakers: number; fee: num
   for (const t of tiers) if (makers >= t) tier = t;
   return { tierMakers: tier, fee: Math.round(packPointFee(tier).perDelivered) };
 }
+
+/**
+ * The 3PL partner's monthly P&L at a node size: revenue = published fee × delivered orders
+ * (fee charged per delivered order), cost = the node's monthly cost.
+ */
+export function packPointPnl(makers: number, rto = blendedRto()) {
+  const cost = packPointCost(makers);
+  const fee = packPointFeeTier(makers).fee;
+  const delivered = cost.ordersPerMonth * (1 - rto);
+  const revenue = fee * delivered;
+  const profit = revenue - cost.monthlyCost;
+  return { makers, fee, handled: cost.ordersPerMonth, delivered, revenue, cost: cost.monthlyCost, profit, marginPct: revenue === 0 ? 0 : (100 * profit) / revenue };
+}
+
+/** Smallest node size at which the partner covers its cost at the published fee. */
+export function packPointBreakEvenMakers(maxMakers = 100): number | null {
+  for (let m = 1; m <= maxMakers; m++) if (packPointPnl(m).profit >= 0) return m;
+  return null;
+}
+
+/** Returns arriving at the node: resellable ones split A (as new) / B (repack); product faults are C. */
+export const gradeShareB = (resellable: number, shareB = C.PP_GRADE_B_SHARE.value) => resellable * shareB;
 
 /** Storage charge: free for 30 days, then ₹0.29 per unit per day. */
 export const storageCost = (units: number, daysStored: number) =>
@@ -555,6 +579,7 @@ export const FORMULA_INFO = {
   priceDropDelivered: { label: 'Price drop delivered', expression: 'Σ (B − price) × orders ÷ Σ orders' },
   packPointCost: { label: 'Pack Point cost per order', expression: '(staff + rent + consumables + equipment + utilities) ÷ orders per month' },
   packPointFee: { label: 'Pack Point fee per delivered order', expression: 'cost per order × (1 + partner margin) ÷ (1 − RTO)' },
+  packPointPnl: { label: 'Pack Point partner P&L (monthly)', expression: 'fee × orders handled × (1 − RTO) − (staff + rent + consumables + equipment + utilities)' },
   storageCost: { label: 'Storage cost', expression: 'units × max(0, days − 30) × ₹0.29' },
   savingPerOrder: { label: 'Saving per order', expression: 'middleman margin − own packing/returns (self-ship) or Pack Point fee' },
   categoryScore: { label: 'Category score', expression: 'Σ (rating ÷ 5 × weight)' },

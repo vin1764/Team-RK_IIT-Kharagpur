@@ -6,7 +6,7 @@ import { SectionPage } from './SectionPage';
 
 export const Problem = () => <SectionPage path="/problem" />;
 export const ControlRoom = () => <SectionPage path="/control-room" />;
-export const Economics = () => <SectionPage path="/economics" />;
+
 export const Impact = () => <SectionPage path="/impact" />;
 export const Levers = () => <SectionPage path="/levers" />;
 export const BreakIt = () => <SectionPage path="/break-it" />;

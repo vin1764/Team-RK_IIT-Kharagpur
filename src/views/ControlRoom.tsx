@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
 import { usePersonaRuns } from '../app/useSim';
 import { C } from '../data/constants';
-import { PERSONA_SPECS, type PersonaId } from '../data/personas';
-import { packPointCost, packPointFeeTier } from '../engine/formulas';
+import { PERSONA_SPECS, SKUS, type PersonaId } from '../data/personas';
+import { listPrice, packPointBreakEvenMakers, packPointCost, packPointFeeTier, packPointPnl } from '../engine/formulas';
+import { PackPointFlow } from '../journey/PackPointFlow';
+import { Go } from '../app/Go';
 import { buildCtx, JourneyContext } from '../journey/ctx';
 import { DemandEngine, Districts, Gate1, Ledger, Cohort, Fault } from '../journey/ControlPanels';
 import { runSim } from '../app/useSim';
@@ -11,7 +13,7 @@ import { Chip } from '../components/Chip';
 import { MetricTile } from '../components/MetricTile';
 import { Num } from '../components/FormulaPopover';
 import { PanelTitle } from '../journey/parts';
-import { inr, num, dayLabel } from '../lib/format';
+import { inr, num, pctText, dayLabel } from '../lib/format';
 import { SectionPage } from './SectionPage';
 
 const TABS = ['Demand engine', 'Ledger', 'Pack Point', 'Launch', 'Coach & KAM', 'Cohort'] as const;
@@ -23,6 +25,9 @@ function PackPoint() {
   const fee = packPointFeeTier(makers);
   const seed = useApp((s) => s.seed);
   const hero = runSim({ personaId: 'hiren', seed });
+  const node = PERSONA_SPECS[0]!.node!;
+  const pnl = packPointPnl(makers);
+  const breakEven = packPointBreakEvenMakers();
   const ppDays = hero.days.flatMap((d) => d.skus.filter((s) => s.skuId === 'casserole-1500' && s.live).map((s) => ({ day: d.day, s })));
   const queue = ppDays.slice(-7);
   return (
@@ -48,6 +53,72 @@ function PackPoint() {
       <p className="text-xs text-grey">
         Fee = cost per order × (1 + {C.PP_PARTNER_MARGIN_PCT.value}% partner margin) ÷ (1 − RTO). Storage free for {C.PP_STORAGE_FREE_DAYS.value} days, then ₹{C.PP_STORAGE_PER_UNIT_DAY.value}/unit/day; slow stock decided by day {C.PP_SLOW_STOCK_DECISION_DAY.value}. Self-ship always available.
       </p>
+      <PackPointFlow makers={makers} />
+      <div className="grid gap-3 md:grid-cols-4">
+        <MetricTile label="Partner profit / month" value={<Num f="packPointPnl">{inr(pnl.profit)}</Num>} target={`margin ${pctText(pnl.marginPct, 1)}`} status={pnl.profit >= 0 ? 'good' : 'bad'} />
+        <MetricTile label="Break-even node size" value={`${breakEven ?? '—'} makers`} target="at the published fee" />
+        <MetricTile
+          label="Cost/order vs Shiprocket"
+          value={`${inr(cost.costPerOrder, 1)} vs ${inr(C.PP_SHIPROCKET_BENCHMARK.value)}`}
+          target="published 3PL price, cross-check"
+          status={cost.costPerOrder <= C.PP_SHIPROCKET_BENCHMARK.value ? 'good' : 'warn'}
+        />
+        <MetricTile
+          label="Dwell at the node (casserole)"
+          value={hero.kpis.ppDwellDays === null ? '—' : `${num(hero.kpis.ppDwellDays, 1)} days`}
+          target={`≤ ${C.T_PACK_POINT_DWELL_DAYS.value} days; slow stock decided by day ${C.PP_SLOW_STOCK_DECISION_DAY.value}`}
+          status={hero.kpis.ppDwellDays !== null && hero.kpis.ppDwellDays <= C.T_PACK_POINT_DWELL_DAYS.value ? 'good' : 'warn'}
+        />
+      </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        <div className="rounded-xl border border-line bg-white p-3 text-sm">
+          <div className="mb-1 font-semibold text-plum">Who uses the Rajkot node</div>
+          <table className="w-full text-xs">
+            <tbody>
+              <tr className="border-t border-line">
+                <td className="py-1">Launch 1 cohort (already pooled)</td>
+                <td className="py-1 text-right font-semibold">{node.startMakers} makers</td>
+              </tr>
+              <tr className="border-t border-line">
+                <td className="py-1">Launch 2 offline makers (join {dayLabel(node.crossDay)}, ~{dayLabel(C.LAUNCH_LIVE_DAYS.value.min + C.LAUNCH_CADENCE_DAYS.value)} live)</td>
+                <td className="py-1 text-right font-semibold">+{node.afterMakers - node.startMakers} makers</td>
+              </tr>
+              <tr className="border-t border-line">
+                <td className="py-1">Hiren: 1 L bottle at {inr(listPrice(SKUS.bottle.stack, SKUS.bottle.margin))} → self-ship (below {inr(C.PACK_POINT_MIN_PRICE.value)})</td>
+                <td className="py-1 text-right">not at the node</td>
+              </tr>
+              <tr className="border-t border-line">
+                <td className="py-1">Hiren: 1.5 L casserole (from {dayLabel(hero.events.find((e) => e.kind === 'switchLive')?.day ?? 0)})</td>
+                <td className="py-1 text-right font-semibold">via the node</td>
+              </tr>
+            </tbody>
+          </table>
+          <p className="mt-1 text-[11px] text-grey">Launch 1: online-elsewhere and churned makers; Launch 2 onward: offline makers via the Pack Point. Self-ship stays available to everyone.</p>
+        </div>
+        <div className="rounded-xl border border-line bg-white p-3 text-sm">
+          <div className="mb-1 font-semibold text-plum">Hiren’s casserole at the node (to day 90)</div>
+          <div className="flex flex-wrap gap-2 text-xs">
+            <span className="rounded bg-good/15 px-2 py-1 font-semibold text-good">Grade A {hero.kpis.ppGrades.A}</span>
+            <span className="rounded bg-warn/20 px-2 py-1 font-semibold">Grade B {hero.kpis.ppGrades.B}</span>
+            <span className="rounded bg-bad/15 px-2 py-1 font-semibold text-bad">Grade C {hero.kpis.ppGrades.C}</span>
+            <span className="rounded bg-blush px-2 py-1 font-semibold">Swaps caught {hero.events.filter((e) => e.kind === 'swapCaught').length}</span>
+            <span className="rounded bg-blush px-2 py-1 font-semibold">Slow-stock decisions {hero.kpis.ppSlowStockUnits} units</span>
+          </div>
+          <ul className="mt-2 space-y-0.5 text-xs text-grey">
+            {hero.events
+              .filter((e) => e.kind === 'swapCaught' || e.kind === 'slowStock' || (e.kind === 'stockIn' && e.skuId === 'casserole-1500'))
+              .slice(0, 4)
+              .map((e, i) => (
+                <li key={i}>
+                  {dayLabel(e.day)} · {e.text}
+                </li>
+              ))}
+          </ul>
+        </div>
+      </div>
+      <Go to="/economics" className="inline-block text-sm font-semibold text-magenta hover:underline">
+        Partner P&amp;L by makers pooled → Economics
+      </Go>
       <div>
         <div className="mb-1 text-sm font-semibold text-plum">Ops queue · Rajkot node (Hiren’s casserole, last 7 days)</div>
         <table className="w-full text-xs">

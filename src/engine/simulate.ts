@@ -24,6 +24,7 @@ import {
   expectedDailyPerSku,
   firstCoachDay,
   firstLot,
+  gradeShareB,
   firstRestockCheckDay,
   forecastAttainment,
   gstInsidePrice,
@@ -111,6 +112,7 @@ export type EventKind =
   | 'switchLive'
   | 'nodeCross'
   | 'swapCaught'
+  | 'slowStock'
   | 'churn'
   | 'gate';
 
@@ -155,6 +157,8 @@ export interface SkuDay {
   inStockAtStart: boolean;
   codSharePct: number;
   rtoProbability: number;
+  /** Returns arriving back today, graded: A as new, B after repack (Pack Point only), C write-off. */
+  grades: { A: number; B: number; C: number };
 }
 
 export interface DayState {
@@ -216,6 +220,10 @@ export interface Kpis {
   kamCases: number;
   newRules: string[];
   secondLotDay: number | null;
+  /** Pack Point: average days a dispatched unit sat at the node (target ≤ 45). */
+  ppDwellDays: number | null;
+  ppGrades: { A: number; B: number; C: number };
+  ppSlowStockUnits: number;
 }
 
 export interface Gates {
@@ -327,6 +335,9 @@ interface SkuState {
   initialRtoProb: number;
   stockOutOpen: boolean;
   churned: boolean;
+  dwellSum: number;
+  dwellUnits: number;
+  slowStockUnits: number;
 }
 
 /** Coach rules need this many orders or deliveries in the 14-day window before they judge a rate. */
@@ -334,7 +345,7 @@ const MIN_SAMPLE = C.NAD_MIN_DELIVERIES.value;
 
 const unitsOnHand = (s: SkuState) => s.lots.reduce((a, l) => a + l.units, 0);
 
-function takeFifo(s: SkuState, n: number): number {
+function takeFifo(s: SkuState, n: number, day: number): number {
   // Returns the share of the dispatched units that came from not-yet-fixed lots.
   let left = n;
   let unfixed = 0;
@@ -343,6 +354,8 @@ function takeFifo(s: SkuState, n: number): number {
     const take = Math.min(lot.units, left);
     lot.units -= take;
     left -= take;
+    s.dwellSum += take * (day - lot.arrival);
+    s.dwellUnits += take;
     if (!lot.fixed) unfixed += take;
     if (lot.units === 0) s.lots.shift();
   }
@@ -587,6 +600,9 @@ function run(base: PersonaSpec, options: SimOptions): SimResult {
       initialRtoProb: rtoProbability(s.codSharePct, s.codFailPct, s.prepaidFailPct),
       stockOutOpen: false,
       churned: false,
+      dwellSum: 0,
+      dwellUnits: 0,
+      slowStockUnits: 0,
     };
   };
   const skus: SkuState[] = spec.skus.map((s, i) => mkState(s, i === 0));
@@ -736,7 +752,12 @@ function run(base: PersonaSpec, options: SimOptions): SimResult {
     let payoutToday = 0;
 
     if (spec.node && !cf && flags.nodeMakers === undefined && d === spec.node.crossDay) {
-      emit({ day: d, kind: 'nodeCross', actor: 'meesho', text: `Rajkot Pack Point crosses ${nodeRef} makers (${nodeMakers}) → fee ${inr(fee)} per delivered order.` });
+      emit({
+        day: d,
+        kind: 'nodeCross',
+        actor: 'meesho',
+        text: `Launch 2 offline makers move their stock into the Rajkot Pack Point: ${spec.node.startMakers} → ${nodeMakers} makers, past ${nodeRef} → fee ${inr(fee)} per delivered order.`,
+      });
     }
 
     for (const s of skus) {
@@ -825,10 +846,20 @@ function run(base: PersonaSpec, options: SimOptions): SimResult {
       s.inbound = s.inbound.filter((x) => x.day !== d);
       for (const r of s.rtoBack.filter((x) => x.day === d)) addLot(s, d, r.v, s.productFixApplied || !hasTarnish(sp));
       s.rtoBack = s.rtoBack.filter((x) => x.day !== d);
+      const grades = { A: 0, B: 0, C: 0 };
       for (const r of s.returnsBack.filter((x) => x.day === d)) {
-        if (r.v.reason === 'expectation' || r.v.reason === 'size') addLot(s, d, r.v.n, s.productFixApplied || !hasTarnish(sp));
-        else if (r.v.reason === 'product') takeHomeToday -= r.v.n * makeCost;
-        else {
+        if (r.v.reason === 'expectation' || r.v.reason === 'size') {
+          // Weighed against dispatch and graded; at the node some need a repack (grade B).
+          const b = sp.fulfilment === 'packPoint' ? Math.min(r.v.n, carry(s, 'grade-b').take(gradeShareB(r.v.n))) : 0;
+          grades.B += b;
+          grades.A += r.v.n - b;
+          takeHomeToday -= b * C.PP_REPACK_COST.value;
+          addLot(s, d, r.v.n, s.productFixApplied || !hasTarnish(sp));
+        } else if (r.v.reason === 'product') {
+          grades.C += r.v.n;
+          takeHomeToday -= r.v.n * makeCost;
+        } else {
+          grades.C += r.v.n;
           // Self-ship swap: the item that came back isn't ours; a claim recovers about half.
           const recovered = r.v.n * makeCost * C.CLAIM_RECOVERY_SHARE.value;
           takeHomeToday -= r.v.n * makeCost - recovered;
@@ -877,7 +908,14 @@ function run(base: PersonaSpec, options: SimOptions): SimResult {
           }
         }
         if (swapsCaught > 0) {
-          emit({ day: d, kind: 'swapCaught', actor: 'meesho', skuId: sp.id, text: `${swapsCaught} return weighed at the Pack Point below dispatch weight → buyer swap, claim denied, maker not charged.` });
+          const gap = C.PP_SWAP_WEIGHT_GAP_G.value;
+          emit({
+            day: d,
+            kind: 'swapCaught',
+            actor: 'meesho',
+            skuId: sp.id,
+            text: `${swapsCaught} return weighed at the Pack Point: −${randInt(s.rng, gap.min, gap.max)} g vs dispatch (${sp.weightGrams} g) → buyer swap, claim denied, maker not charged.`,
+          });
         }
         const kept = D - returned;
         keptToday += kept;
@@ -929,7 +967,7 @@ function run(base: PersonaSpec, options: SimOptions): SimResult {
           carry(s, 'rto-cod').take((cod * sp.codFailPct) / 100) + carry(s, 'rto-pre').take(((orders - cod) * sp.prepaidFailPct) / 100),
         );
         rtosAvoided += orders * (s.initialRtoProb - rtoP);
-        const unfixedShare = takeFifo(s, orders);
+        const unfixedShare = takeFifo(s, orders, d);
         if (sp.fulfilment === 'selfShip') takeHomeToday -= orders * sp.stack.packaging;
         if (rtoCount > 0) s.rtoBack.push({ day: d + C.SIM_RTO_RETURN_DAYS.value, v: rtoCount });
         if (orders - rtoCount > 0) {
@@ -947,6 +985,18 @@ function run(base: PersonaSpec, options: SimOptions): SimResult {
         addLot(s, d, s.packLater, !hasTarnish(sp));
         emit({ day: d, kind: 'packLaterLinked', actor: 'maker', skuId: sp.id, text: `“Pack later” lot linked: ${s.packLater} units packed and added to stock.` });
         s.packLater = 0;
+      }
+
+      // Pack Point slow stock: anything at the node this long is decided (returned to the maker), not left to dwell.
+      if (sp.fulfilment === 'packPoint') {
+        const decide = C.PP_SLOW_STOCK_DECISION_DAY.value;
+        const old = s.lots.filter((l) => d - l.arrival >= decide);
+        const n = old.reduce((a, l) => a + l.units, 0);
+        if (n > 0) {
+          s.lots = s.lots.filter((l) => d - l.arrival < decide);
+          s.slowStockUnits += n;
+          emit({ day: d, kind: 'slowStock', actor: 'meesho', skuId: sp.id, text: `Slow stock: ${n} × “${sp.name}” at the node for ${decide} days → decided: returned to the maker (not left to dwell).` });
+        }
       }
 
       // Storage at the Pack Point (free 30 days).
@@ -988,6 +1038,7 @@ function run(base: PersonaSpec, options: SimOptions): SimResult {
         inStockAtStart: onHandStart > 0,
         codSharePct: s.codSharePct,
         rtoProbability: rtoP,
+        grades,
       });
 
       if (d === s.liveFrom) {
@@ -1383,6 +1434,8 @@ function run(base: PersonaSpec, options: SimOptions): SimResult {
 
   // ───── KPIs ─────
   const allDays = skus.flatMap((s) => s.history);
+  const isPP = (id: string) => skus.some((s) => s.spec.id === id && s.spec.fulfilment === 'packPoint');
+  const ppDwell = skus.filter((s) => s.spec.fulfilment === 'packPoint').reduce((a, s) => ({ sum: a.sum + s.dwellSum, units: a.units + s.dwellUnits }), { sum: 0, units: 0 });
   const totalOrders = sumBy(allDays, (x) => x.orders);
   const delivered = sumBy(allDays, (x) => x.delivered);
   const rtoTotal = sumBy(allDays, (x) => x.rto);
@@ -1425,6 +1478,9 @@ function run(base: PersonaSpec, options: SimOptions): SimResult {
     kamCases,
     newRules,
     secondLotDay,
+    ppDwellDays: ppDwell.units === 0 ? null : ppDwell.sum / ppDwell.units,
+    ppGrades: { A: sumBy(allDays, (x) => (isPP(x.skuId) ? x.grades.A : 0)), B: sumBy(allDays, (x) => (isPP(x.skuId) ? x.grades.B : 0)), C: sumBy(allDays, (x) => (isPP(x.skuId) ? x.grades.C : 0)) },
+    ppSlowStockUnits: skus.reduce((a, s) => a + s.slowStockUnits, 0),
   };
 
   events.sort((a, b) => a.day - b.day);

@@ -85,7 +85,7 @@ export const PAGES: PageDef[] = [
     summary: 'What Meesho measures, when it intervenes, and the rules fixed in advance.',
     contains: ['Demand engine', 'Benchmark B', 'Committed-supply ledger', 'Pack Point ops', 'Launch Week district control', 'Gates', 'Coach & KAM queue', 'Cohort metrics'],
     ps: ['Q4'],
-    next: '/impact',
+    next: '/economics',
     inNav: true,
   },
   {
@@ -177,7 +177,7 @@ export const page = (path: string): PageDef => {
 };
 
 /** Pages built so far. Unfinished pages keep their route (no dead links) but stay out of the nav and tiles. */
-export const READY = new Set(['/', '/problem', '/categories', '/personas', '/personas/:id', '/journey/:id', '/control-room', '/impact', '/levers', '/break-it', '/verify', '/roadmap', '/tour']);
+export const READY = new Set(['/', '/problem', '/categories', '/personas', '/personas/:id', '/journey/:id', '/control-room', '/economics', '/impact', '/levers', '/break-it', '/verify', '/roadmap', '/tour']);
 
 export const NAV_PAGES = PAGES.filter((p) => p.inNav && READY.has(p.path));
 
