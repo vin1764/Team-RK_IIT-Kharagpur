@@ -14,9 +14,12 @@ import { Num } from '../components/FormulaPopover';
 import { PanelTitle } from '../journey/parts';
 import { inr, num, pctText, dayLabel } from '../lib/format';
 import { SectionPage } from './SectionPage';
+import { NudgeLog } from '../ops/NudgeLog';
+import { useMvp } from '../mvp/state';
 
 const TABS = ['Demand engine', 'Ledger', 'Pack Point', 'Launch', 'Coach & KAM', 'Cohort'] as const;
-type Tab = (typeof TABS)[number];
+const OPS_TABS = ['Nudge log', ...TABS] as const;
+type Tab = (typeof OPS_TABS)[number];
 
 function PackPoint({ asOf }: { asOf: number }) {
   const [makers, setMakers] = useState(C.PP_REFERENCE_MAKERS.value);
@@ -196,19 +199,26 @@ function NotYet({ what, day }: { what: string; day: number }) {
   );
 }
 
-export default function ControlRoom() {
-  const [tab, setTab] = useState<Tab>('Demand engine');
-  const [pid, setPid] = useState<PersonaId>('hiren');
-  const [asOf, setAsOf] = useState(C.TIMELINE_DAYS.value.max);
+/** The control room; as the ops console (`ops`) its day and maker follow the maker app's demo clock. */
+export default function ControlRoom({ ops = false }: { ops?: boolean }) {
+  const current = useMvp((s) => s.current);
+  const [tab, setTab] = useState<Tab>(ops ? 'Nudge log' : 'Demand engine');
+  const [pid, setPid] = useState<PersonaId>(ops ? (current ?? 'hiren') : 'hiren');
+  const [localAsOf, setLocalAsOf] = useState<number>(C.TIMELINE_DAYS.value.max);
+  const clockDay = useMvp((s) => s.states[pid].day);
+  const setDay = useMvp((s) => s.setDay);
+  const asOf = ops ? clockDay : localAsOf;
+  const setAsOf = (d: number) => (ops ? setDay(pid, d) : setLocalAsOf(d));
+  const tabs: readonly Tab[] = ops ? OPS_TABS : TABS;
   const p = PERSONA_SPECS.find((x) => x.id === pid)!;
   const { base, cf } = usePersonaRuns(pid);
   const ctxAt = useMemo(() => (chapter: number, day: number) => buildCtx(p, base, cf, chapter, day), [p, base, cf]);
   const live = C.LAUNCH_LIVE_DAYS.value;
   return (
-    <SectionPage path="/control-room">
+    <SectionPage path={ops ? '/ops' : '/control-room'}>
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <div className="flex flex-wrap gap-1 rounded-full bg-blush p-1" role="tablist" aria-label="Control room tabs">
-          {TABS.map((t) => (
+          {tabs.map((t) => (
             <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={`rounded-full px-3 py-1 text-sm font-semibold ${tab === t ? 'bg-plum text-white' : 'text-plum'}`}>
               {t}
             </button>
@@ -245,6 +255,7 @@ export default function ControlRoom() {
         </div>
       </div>
       <div className="rounded-2xl border-2 border-dashed border-plum/50 bg-white p-4 text-sm">
+        {tab === 'Nudge log' && <NudgeLog pid={pid} asOf={asOf} />}
         {tab === 'Demand engine' && (
           <JourneyContext.Provider value={ctxAt(0, asOf)}>
             <DemandEngine />

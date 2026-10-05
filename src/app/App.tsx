@@ -22,7 +22,7 @@ export function App() {
           {AppRoutes()}
         </Route>
         <Route element={<Layout />}>
-          <Route path="ops" element={<ControlRoom />} />
+          <Route path="ops" element={<ControlRoom ops />} />
           <Route path="notes" element={<Landing />} />
           <Route path="problem" element={<Problem />} />
           <Route path="categories" element={<Categories />} />

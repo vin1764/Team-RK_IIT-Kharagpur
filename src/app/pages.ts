@@ -90,6 +90,17 @@ export const PAGES: PageDef[] = [
   },
 ];
 
+PAGES.push({
+  path: '/ops',
+  nav: 'Ops console',
+  title: 'Meesho ops console',
+  summary: 'What Meesho sees, as of the maker app’s demo day: every nudge and its cause, the demand engine, the ledger, Launch Week, the Pack Point node, the coach queue and cohort metrics.',
+  contains: ['Nudge log', 'Demand engine', 'Ledger', 'Launch Week', 'Pack Point node', 'Coach & escalation queue', 'Cohort metrics'],
+  ps: ['Q4'],
+  next: '/app',
+  inNav: false,
+});
+
 export const page = (path: string): PageDef => {
   const p = PAGES.find((x) => x.path === path);
   if (!p) throw new Error(`Unknown page ${path}`);
@@ -97,7 +108,7 @@ export const page = (path: string): PageDef => {
 };
 
 /** Pages built so far. Unfinished pages keep their route (no dead links) but stay out of the nav and tiles. */
-export const READY = new Set(['/notes', '/problem', '/categories', '/journey/:id', '/control-room', '/economics', '/impact']);
+export const READY = new Set(['/ops', '/notes', '/problem', '/categories', '/journey/:id', '/control-room', '/economics', '/impact']);
 
 export const NAV_PAGES = PAGES.filter((p) => p.inNav && READY.has(p.path));
 

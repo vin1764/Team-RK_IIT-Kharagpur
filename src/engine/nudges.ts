@@ -168,7 +168,7 @@ function arrivalsOn(run: SimResult, d: number, sku: string): number {
 }
 
 /** FIFO lots at the node for a Pack Point SKU on day d: arrival day and units still there. */
-function nodeLots(run: SimResult, sku: string, d: number): { arrival: number; units: number }[] {
+export function nodeLots(run: SimResult, sku: string, d: number): { arrival: number; units: number }[] {
   const lots: { arrival: number; units: number }[] = [];
   for (const day of run.days) {
     if (day.day > d) break;
@@ -486,7 +486,7 @@ export function nudgesFiredOn(account: NudgeAccount, d: number, state: NudgeStat
       cta: { label: 'See product', labelHi: 'प्रोडक्ट देखें', route: `/app/products/${sku}` },
       actions: [{ id: 'started', label: 'Batch started', labelHi: 'बैच शुरू किया' }],
       sku,
-      source: `restock_batch fired · run-rate ${rr.toFixed(1)}/day · reorder point ${e.data?.reorderPoint} · ${onHand} on hand`,
+      source: `run-rate ${+rr.toFixed(1)}/day · reorder point ${e.data?.reorderPoint} · ${onHand} on hand`,
     });
   }
 
@@ -496,6 +496,8 @@ export function nudgesFiredOn(account: NudgeAccount, d: number, state: NudgeStat
     if (firstLive === undefined || d <= firstLive || (d - firstLive) % 7 !== 0) continue;
     const week = run.days.filter((x) => x.day > d - 7 && x.day <= d).reduce((a, x) => a + (x.skus.find((s) => s.skuId === sku)?.orders ?? 0), 0);
     if (week <= 0) continue;
+    // A batch drop already due this week covers it.
+    if (run.days.some((x) => x.day > d && x.day <= d + 7 && arrivalsOn(run, x.day, sku) > 0)) continue;
     const drop = d + C.PP_DROP_NOTICE_DAYS.value;
     add({
       id: `send_next_lot:${sku}:${d}`,
@@ -610,7 +612,7 @@ export function nudgesFiredOn(account: NudgeAccount, d: number, state: NudgeStat
         { id: 'dismissed', label: 'Not now', labelHi: 'अभी नहीं', dismiss: true },
       ],
       sku,
-      source: `coach trigger ${trigger} fired · ${e.text.replace(/^Coach: /, '').replace(/ Hindi nudge.*$/, '')}`,
+      source: `coach trigger ${trigger} · ${e.text.replace(/^Coach: /, '').replace(/ Hindi nudge.*$/, '')}`,
     });
   }
   // Prepaid: refusal rate above the type's 75th percentile, checked weekly (and when the coach flags it).
@@ -714,11 +716,12 @@ export function nudgesFiredOn(account: NudgeAccount, d: number, state: NudgeStat
     const liveDay = run.events.find((x) => x.kind === 'switchLive' && x.skuId === sku)?.day ?? d;
     const lot = arrivalsOn(run, liveDay, sku);
     const gap = Math.round((spec.openGapWeek.min + spec.openGapWeek.max) / 2);
+    const expand = e.data?.why === 'expand';
     add({
       id: `switch_sku:${sku}`,
       type: 'switch_sku',
-      title: `Make this instead: ${spec.name}, ${gap}/week unserved, same steel and press.`,
-      titleHi: `इसकी जगह यह बनाएँ: ${spec.name}, हर हफ़्ते ${gap} की माँग।`,
+      title: `${expand ? 'Add a product' : 'Make this instead'}: ${spec.name}, ${gap}/week unserved, same material and machines.`,
+      titleHi: `${expand ? 'नया प्रोडक्ट जोड़ें' : 'इसकी जगह यह बनाएँ'}: ${spec.name}, हर हफ़्ते ${gap} की माँग।`,
       body: `List it (2 min), then make ${lot} units by ${dateLabel(liveDay)}. ${inr(listPrice(spec.stack, spec.margin))}.`,
       bodyHi: `लिस्ट करें (2 मिनट), फिर ${dateLabel(liveDay)} तक ${lot} यूनिट बनाएँ।`,
       dueDay: liveDay,

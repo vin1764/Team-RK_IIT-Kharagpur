@@ -26,3 +26,15 @@ Decisions taken where MVP.md or CLAUDE.md was unclear. Each one is the option th
 11. **The seller-type check is simulated.** Every persona's Udyam record says "manufacturer". Choosing wholesaler or reseller shows a mismatch and "Not eligible for Launch Week"; the maker can change the answer.
 12. **Demand confidence** comes from `demandConfidence(DEMAND_PAST_LAUNCHES)`, which is 7 synthetic past launches → Medium.
 13. **Sample photos** are synthetic placeholder tiles. The "cleaned" version is tagged Simulated.
+
+## Nudge engine (M3)
+
+14. **API.** `nudgesFor(account, day, state)` returns the active nudges, which MVP.md asks for. Alongside it: `nudgesFiredOn` (what fires on one day), `nudgeTimeline` (everything fired so far, used by the inbox and ops log) and `nextNudgeDay` (for "Jump to next nudge"). The account is `{ id, persona, run }`. Nudges carry Hindi copy (`titleHi`, `bodyHi`) and secondary `actions`.
+15. **Order nudges are per SKU per day,** not per order, so a day with 12 orders is one card.
+16. **Hand-over is confirmed by Valmo's scan.** Parcels count as handed over unless the maker taps "Not ready today" on the pickup nudge. Only then do `dispatch_deadline` (urgent) and `pickup_missed` fire the next day. Without this rule both would fire every day for every order the maker didn't tap.
+17. **Escalation fires once per account.** It fires on the engine's KAM case (a fix failed twice; Sunita), or the day after a second nudge is set aside with "Not now". Pickup "Not ready" taps don't count.
+18. **Storage nudges** fire from first-in-first-out tracking of each Pack Point lot. In the base 90 days, Hiren's casserole lots sell within the 30 free days, so `storage_warning` and `storage_decision` don't fire. Both are unit-tested on a synthetic run where the lot doesn't sell.
+19. **Weekly Pack Point lot** (`send_next_lot`) = the last 7 days' orders. It is skipped when a batch drop is already due that week.
+20. **Prepaid nudge**: a weekly check of the 14-day refusal rate against the type's 75th percentile, plus the engine's own refusal trigger.
+21. **Nudge actions** are recorded per nudge id. Packing, handing over and "not ready" also update the order state. A set-aside ("Not now") clears the nudge and counts towards escalation.
+22. **Ops console.** `#/ops` is the control room in "ops mode": its day and maker follow the maker app's demo clock (moving its slider moves the clock), and it adds a Nudge log tab.

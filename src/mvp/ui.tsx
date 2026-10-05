@@ -20,7 +20,8 @@ import {
 } from 'lucide-react';
 import { Go } from '../app/Go';
 import { Chip } from '../components/Chip';
-import type { Nudge, NudgeType } from '../engine/nudges';
+import { fulfilmentOf, type Nudge, type NudgeAction, type NudgeType } from '../engine/nudges';
+import type { AccountState } from './state';
 import { useMvp } from './state';
 import type { AccountView } from './useAccount';
 
@@ -138,12 +139,36 @@ const ICON: Record<NudgeType, typeof Bell> = {
   payout: BadgeIndianRupee,
 };
 
-/** Record a nudge action (clears it) or mark it read. */
+/** Order keys (`sku:orderDay`) a pickup or order nudge covers: self-ship SKUs with orders that day. */
+function orderKeys(v: AccountView, n: Nudge, orderDay: number): string[] {
+  const day = v.run.days.find((d) => d.day === orderDay);
+  return (day?.skus ?? [])
+    .filter((s) => s.orders > 0 && (!n.sku || s.skuId === n.sku) && fulfilmentOf(v.run, s.skuId) === 'self')
+    .map((s) => `${s.skuId}:${orderDay}`);
+}
+
+/** Record a nudge action (clears it), with its effect on orders: packed, handed over, not ready. */
+export function applyAction(v: AccountView, s: AccountState, n: Nudge, a: NudgeAction): AccountState {
+  const next: AccountState = {
+    ...s,
+    actions: { ...s.actions, [n.id]: { day: v.day, action: a.dismiss ? 'dismissed' : a.id } },
+    read: { ...s.read, [n.id]: true },
+  };
+  const mark = (field: 'packed' | 'handed' | 'notReady', keys: string[]) => {
+    next[field] = { ...next[field], ...Object.fromEntries(keys.map((k) => [k, true as const])) };
+  };
+  if (n.type === 'new_order_pack' && a.id === 'packed') mark('packed', orderKeys(v, n, n.firedDay));
+  if (n.type === 'valmo_pickup' && a.id === 'handed') mark('handed', orderKeys(v, n, n.firedDay));
+  if (n.type === 'valmo_pickup' && a.id === 'not_ready') mark('notReady', orderKeys(v, n, n.firedDay));
+  if (n.type === 'dispatch_deadline' && a.id === 'handed') mark('handed', orderKeys(v, n, n.firedDay - 1));
+  return next;
+}
+
+/** Record a nudge action or mark it read. */
 export function useNudgeActions(v: AccountView) {
   const update = useMvp((s) => s.update);
   return {
-    act: (n: Nudge, action: string) =>
-      update(v.id, (s) => ({ ...s, actions: { ...s.actions, [n.id]: { day: v.day, action } }, read: { ...s.read, [n.id]: true } })),
+    act: (n: Nudge, a: NudgeAction) => update(v.id, (s) => applyAction(v, s, n, a)),
     markRead: (n: Nudge) => update(v.id, (s) => (s.read[n.id] ? s : { ...s, read: { ...s.read, [n.id]: true } })),
   };
 }
@@ -179,7 +204,7 @@ export function NudgeCard({ n, v, showActions = true, compact = false }: { n: Nu
               <button
                 key={a.id}
                 type="button"
-                onClick={() => act(n, a.dismiss ? 'dismissed' : a.id)}
+                onClick={() => act(n, a)}
                 data-testid={`act-${a.id}`}
                 className={a.dismiss ? 'px-2 py-1.5 text-sm text-grey underline' : 'rounded-lg border border-plum px-3 py-1.5 text-sm font-semibold text-plum'}
               >

@@ -43,3 +43,29 @@
 - MVP state test and single-file smoke test pass.
 
 **Deferred:** none for M2.
+
+## M3: nudge engine, Today/Inbox, deep links ✅
+
+**Built**
+- `src/engine/nudges.ts`: a pure engine with all 26 types, each with a cause (`source`), priority, due date, expiry, a deep-link CTA, actions and Hindi copy.
+- Today: urgent and today items, then updates; live stats (orders today, stock left, next payout).
+- Inbox: all or unread, grouped by day. A red dot on the Today tab when anything is urgent. The header bell counts unread active nudges.
+- Each target screen shows the nudges that point to it at the top, so the action can be taken there.
+- The CTA target screens needed for deep links were built here, ahead of M4:
+  - Orders, with a Returns tab and the `ret` highlight
+  - Pack Point
+  - Products and product detail
+  - Coach
+  - Earnings
+- Ops console (`#/ops`) with a Nudge log tab, synced to the demo clock: "restock_batch fired for Hiren · run-rate 11/day · reorder point 77".
+
+**Tests**
+- Unit tests 94/94, including 42 new nudge tests:
+  - every type fires on its condition and day;
+  - deep links are valid;
+  - per-persona rules: Pack Point only for Hiren, Launch Week numbers, prepaid frequency, escalation;
+  - clearing and expiry, the jump walk and determinism.
+- New e2e `nudges.spec.ts`: Jump to next nudge walks Hiren from day −7 to the end (72 jumps). It opens 19 nudge types' CTAs at their days, then every distinct CTA path; the urgent dot appears on Ayesha's stock-out.
+- Crawler: 27 routes, 335 clicks. All e2e tests pass.
+
+**Deferred to M4:** operating-screen polish and per-flow tests.
