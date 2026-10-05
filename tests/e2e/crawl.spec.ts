@@ -63,6 +63,43 @@ test('every data-nav link and button works, from #/ onward', async ({ page }) =>
   console.log(`Crawled ${visited.size} routes, ${clicks} clicks.`);
 });
 
+test('maker app mid-story: every app link works for each account on day 78', async ({ page }) => {
+  test.setTimeout(600_000);
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(`${hashOf(page)}: ${e.message}`));
+  page.on('console', (m) => m.type() === 'error' && errors.push(`${hashOf(page)}: ${m.text()}`));
+  let clicks = 0;
+  const visited = new Set<string>();
+  for (const id of ['hiren', 'ayesha', 'sunita']) {
+    await page.goto(`/#/app/today?as=${id}`);
+    await page.evaluate((k) => localStorage.setItem(k, JSON.stringify({ v: 1, day: 78 })), `meesho-mvp:v1:account:${id}`);
+    await page.reload();
+    const queue = [`#/app/today?as=${id}`];
+    const seen = new Set<string>();
+    while (queue.length > 0) {
+      const route = queue.shift()!;
+      if (seen.has(route)) continue;
+      seen.add(route);
+      visited.add(`${id} ${route}`);
+      await page.goto(`/${route}`);
+      await assertHealthyPage(page, `${id} ${route}`);
+      const targets = await page.locator('[data-nav]').evaluateAll((els) => els.map((e) => e.getAttribute('data-nav')!));
+      for (let i = 0; i < targets.length; i++) {
+        const target = targets[i]!;
+        if (!target.startsWith('/app/') || target.startsWith('/app/today?as=')) continue;
+        if (hashOf(page) !== route) await page.goto(`/${route}`);
+        await page.locator('[data-nav]').nth(i).click();
+        await expect.poll(() => hashOf(page), { message: `${id}: click ${target} on ${route}` }).toBe(toHash(target));
+        await assertHealthyPage(page, `${id} ${route} → ${target}`);
+        clicks++;
+        if (!seen.has(toHash(target))) queue.push(toHash(target));
+      }
+    }
+  }
+  expect(errors).toEqual([]);
+  console.log(`Day-78 crawl: ${visited.size} account routes, ${clicks} clicks.`);
+});
+
 test('unknown routes show a not-found page with a way back', async ({ page }) => {
   await page.goto('/#/no-such-page');
   await expect(page.getByTestId('not-found')).toBeVisible();

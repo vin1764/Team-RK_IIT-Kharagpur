@@ -30,7 +30,7 @@ export default function Coach() {
             )}
           </div>
         ))}
-        {recheck !== null && recheck >= v.day && (
+        {recheck !== null && recheck >= v.day && recheck <= C.TIMELINE_DAYS.value.max && (
           <Caption>
             {v.t.recheckOn}: {dateLabel(recheck)} ({dayLabel(recheck)})
           </Caption>

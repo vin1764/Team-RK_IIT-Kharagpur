@@ -12,7 +12,7 @@ export default function PackPoint() {
   const v = useV();
   const node = nodeAt(v, Math.max(v.day, 0));
   const ppSkus = allSpecs(v).filter((s) => fulfilmentOf(v.run, s.id) === 'packPoint' && v.run.days.some((d) => d.day <= v.day && d.skus.some((x) => x.skuId === s.id && (x.live || x.onHand > 0))));
-  const upcoming = v.timeline.filter((n) => (n.type === 'send_lot_packpoint' || n.type === 'send_next_lot') && (n.dueDay ?? 0) >= v.day).at(-1);
+  const upcomingFor = (sku: string) => v.timeline.filter((n) => (n.type === 'send_lot_packpoint' || n.type === 'send_next_lot') && n.sku === sku && (n.dueDay ?? 0) >= v.day).at(-1);
   const sub = node ? `${v.persona.city} node · ${node.makers} makers · ${inr(node.fee)} per delivered order` : `No node in ${v.persona.city} yet`;
 
   if (!node) {
@@ -63,6 +63,7 @@ export default function PackPoint() {
       {ppSkus.map((s) => {
         const lots = nodeLots(v.run, s.id, v.day);
         const arrivals = v.run.events.filter((e) => e.skuId === s.id && (e.kind === 'stockIn' || e.kind === 'batchArrived') && e.day <= v.day);
+        const upcoming = upcomingFor(s.id);
         const atNode = v.run.days.find((d) => d.day === v.day)?.skus.find((x) => x.skuId === s.id)?.onHand ?? 0;
         return (
           <div key={s.id} className="space-y-3">
@@ -72,7 +73,7 @@ export default function PackPoint() {
               </H2>
               {upcoming ? (
                 <p className="text-sm" data-testid="pp-next-lot">
-                  {upcoming.title.replace(/^Send (your lot to the .* Pack Point|next week's lot): /, '')} · drop {weekdayLabel(upcoming.dueDay!)}, {C.PP_DROP_WINDOW.value}
+                  {upcoming.title.replace(/^Send (your lot to the .* Pack Point|next week's lot): /, '').replace(/[.,].*$/, '')} · drop {weekdayLabel(upcoming.dueDay!)}, {C.PP_DROP_WINDOW.value}
                 </p>
               ) : (
                 <p className="text-sm text-grey">No lot due. We tell you {C.PP_DROP_NOTICE_DAYS.value} days before each drop.</p>

@@ -38,7 +38,7 @@ function OrdersTab({ v }: { v: AccountView }) {
   const week = v.run.days.filter((x) => x.day > v.day - 7 && x.day <= v.day);
   return (
     <>
-      <ScreenNudges v={v} route="/app/orders" />
+      <ScreenNudges v={v} route="/app/orders" types={['new_order_pack', 'valmo_pickup', 'dispatch_deadline', 'pickup_missed']} />
       {v.day < C.LAUNCH_LIVE_DAYS.value.min ? (
         <Card>
           <p className="text-sm">No orders yet. You go live on {dateLabel(C.LAUNCH_LIVE_DAYS.value.min)}.</p>
@@ -65,8 +65,8 @@ function OrdersTab({ v }: { v: AccountView }) {
         const status = pp ? 'Packed and shipped by the Pack Point' : handed ? 'Handed over to Valmo' : packed ? 'Packed · waiting for pickup' : 'To pack';
         return (
           <Card key={key}>
-            <div className="flex items-start justify-between gap-2">
-              <div>
+            <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1">
+              <div className="min-w-[10rem] flex-1">
                 <div className="font-semibold">
                   {num(s.orders)} × {spec?.name ?? s.skuId}
                 </div>
@@ -182,7 +182,7 @@ function ReturnsTab({ v, highlight }: { v: AccountView; highlight: string | null
     .reverse();
   return (
     <>
-      <ScreenNudges v={v} route="/app/orders" />
+      <ScreenNudges v={v} route="/app/orders" types={['claim_reminder', 'return_incoming', 'return_at_node']} />
       {items.length === 0 && (
         <Card>
           <p className="text-sm text-grey">No returns in the last {C.RETURN_WINDOW_DAYS.value * 2} days.</p>

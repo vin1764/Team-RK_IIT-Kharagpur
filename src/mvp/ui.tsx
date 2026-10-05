@@ -219,8 +219,8 @@ export function NudgeCard({ n, v, showActions = true, compact = false }: { n: Nu
 }
 
 /** Active nudges whose CTA opens this screen, shown at its top so the action can be taken here. */
-export function ScreenNudges({ v, route, sku }: { v: AccountView; route: string; sku?: string }) {
-  const list = v.active.filter((n) => n.cta.route.split('?')[0] === route && (!sku || n.sku === sku));
+export function ScreenNudges({ v, route, sku, types }: { v: AccountView; route: string; sku?: string; types?: NudgeType[] }) {
+  const list = v.active.filter((n) => n.cta.route.split('?')[0] === route && (!sku || n.sku === sku) && (!types || types.includes(n.type)));
   if (list.length === 0) return null;
   return (
     <div className="space-y-2">

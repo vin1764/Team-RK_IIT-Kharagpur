@@ -774,7 +774,7 @@ export function nudgesFiredOn(account: NudgeAccount, d: number, state: NudgeStat
       titleHi: `आज ${inr(ds.money.payoutNet)} का भुगतान, ${C.PAYMENT_CYCLE_DAYS.value} दिन पहले डिलीवर हुए ऑर्डर के लिए।`,
       body: `TCS ${C.GST_TCS_PCT.value}% and TDS ${C.INCOME_TAX_TDS_PCT.value}% withheld are claimable credits.`,
       bodyHi: 'TCS और TDS क्लेम किए जा सकते हैं।',
-      expiresDay: d + 1,
+      expiresDay: d,
       priority: 'info',
       cta: { label: 'See earnings', labelHi: 'कमाई देखें', route: '/app/earnings' },
       source: `Payout cycle: ${C.PAYMENT_CYCLE_DAYS.value} days after delivery`,

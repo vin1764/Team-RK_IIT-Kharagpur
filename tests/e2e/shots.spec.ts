@@ -7,24 +7,25 @@ const ROUTES = (process.env.SHOT_ROUTES ?? '/#/,/#/app,/#/app/today?as=hiren,/#/
 for (const vp of [
   { name: 'desk', width: 1366, height: 768 },
   { name: 'phone', width: 390, height: 844 },
-]) {
+].filter((x) => !process.env.SHOT_VP || x.name === process.env.SHOT_VP)) {
   test(`shots ${vp.name}`, async ({ page }) => {
     test.skip(!dir, 'set SHOTS to a directory to take screenshots');
-    await page.setViewportSize({ width: vp.width, height: vp.height });
+    await page.setViewportSize({ width: vp.width, height: process.env.SHOT_FULL && vp.name === 'phone' ? 2200 : vp.height });
     if (process.env.SHOT_DAY) {
       await page.goto('/#/app/today?as=hiren');
       await page.evaluate((d) => {
         for (const id of ['hiren', 'ayesha', 'sunita']) {
           const k = `meesho-mvp:v1:account:${id}`;
-          const s = JSON.parse(localStorage.getItem(k) ?? 'null');
-          if (s) localStorage.setItem(k, JSON.stringify({ ...s, day: Number(d) }));
+          const s = JSON.parse(localStorage.getItem(k) ?? '{"v":1}');
+          localStorage.setItem(k, JSON.stringify({ ...s, day: Number(d) }));
         }
       }, process.env.SHOT_DAY);
+      await page.reload();
     }
     for (const [i, r] of ROUTES.entries()) {
       await page.goto(r);
       await page.waitForTimeout(250);
-      await page.screenshot({ path: `${dir}/${vp.name}-${i}.png` });
+      await page.screenshot({ path: `${dir}/${vp.name}-${i}.png`, fullPage: !!process.env.SHOT_FULL });
     }
   });
 }

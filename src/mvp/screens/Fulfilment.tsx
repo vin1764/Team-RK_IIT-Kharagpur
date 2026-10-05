@@ -25,7 +25,8 @@ export default function Fulfilment() {
   const rec: F = ppNow ? 'packPoint' : 'self';
   const chosen = v.state.onboarding.fulfilment[spec.id];
   const nextUnlisted = launchSkus(v).find((s) => s.id !== spec.id && !v.state.onboarding.listed[s.id]);
-  const nextRoute = nextUnlisted ? `/app/list/${nextUnlisted.id}/product` : v.state.onboarding.listed[spec.id] && !launchSkus(v).some((s) => s.id === spec.id) ? (ready('products') ? `/app/products/${spec.id}` : '/app/today') : '/app/launch';
+  const isLaunch = launchSkus(v).some((s) => s.id === spec.id);
+  const nextRoute = !isLaunch ? (ready('products') ? `/app/products/${spec.id}` : '/app/today') : nextUnlisted ? `/app/list/${nextUnlisted.id}/product` : '/app/launch';
   const choose = (f: F) => onboard((o) => ({ fulfilment: { ...o.fulfilment, [spec.id]: f } }));
 
   const reason = !node

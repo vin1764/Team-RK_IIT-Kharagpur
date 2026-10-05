@@ -45,7 +45,7 @@ export default function Earnings() {
         <H2>Weekly payouts</H2>
         <div className="mt-2 flex h-24 items-end gap-1" aria-label="Payouts by week">
           {weeks.map((w) => (
-            <div key={w.end} className="flex flex-1 flex-col items-center justify-end" title={`${dateLabel(w.end)}: ${inr(w.amt)}`}>
+            <div key={w.end} className="flex h-full flex-1 flex-col items-center justify-end" title={`${dateLabel(w.end)}: ${inr(w.amt)}`}>
               <div className="w-full rounded-t bg-magenta" style={{ height: `${(100 * w.amt) / max}%` }} />
             </div>
           ))}

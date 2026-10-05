@@ -38,3 +38,10 @@ Decisions taken where MVP.md or CLAUDE.md was unclear. Each one is the option th
 20. **Prepaid nudge**: a weekly check of the 14-day refusal rate against the type's 75th percentile, plus the engine's own refusal trigger.
 21. **Nudge actions** are recorded per nudge id. Packing, handing over and "not ready" also update the order state. A set-aside ("Not now") clears the nudge and counts towards escalation.
 22. **Ops console.** `#/ops` is the control room in "ops mode": its day and maker follow the maker app's demo clock (moving its slider moves the clock), and it adds a Nudge log tab.
+
+## Operating screens (M4)
+
+23. **Order IDs and labels** are deterministic placeholders (Simulated). Orders show today and yesterday; older days roll up into the last-7-days card.
+24. **Returns** list the last 28 days, plus returns arriving tomorrow (in transit). Swaps caught by weight at the node get their own row.
+25. **Make-to-demand listings** (casserole, lunch box) open the listing bot pre-filled, since the maker's photos and details already exist. After the fulfilment step they go to the product page, not back to the launch flow.
+26. **A SKU shows "Stop"** from the day the engine flags it a slow seller, or once the maker taps "Stop it".

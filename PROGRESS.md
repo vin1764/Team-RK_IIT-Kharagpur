@@ -69,3 +69,34 @@
 - Crawler: 27 routes, 335 clicks. All e2e tests pass.
 
 **Deferred to M4:** operating-screen polish and per-flow tests.
+
+## M4: operating screens ✅
+
+**Built / polished**
+- Orders: Valmo pickup window; per-SKU order cards with dispatch-by and countdown; label placeholder (Simulated); Packed and Handed over, which clear the matching nudges. Pack Point rows show "packed and shipped by the Pack Point".
+- Returns: who pays (RTO free when dispatched on time; return fee by weight and zone; swap → claim with unboxing video for self-ship, or caught by weight at the node), grading, the `ret` highlight, and nudges filtered per tab.
+- Pack Point: next lot per SKU and its drop window, lots received (sent vs counted), a storage clock per lot (30 days free, then ₹0.29/unit/day; decision at day 60), and the no-node case for Ayesha and Sunita.
+- Products: make more / keep / fix / stop with days of cover. A stopped SKU gets a "make this instead" card (or "add this product" for an expansion). The listing bot opens pre-filled, then fulfilment recommends the Pack Point (41 makers, ₹30), then the product page.
+- Product detail: price vs band, stock and reorder point, last batch asked, quality vs the type, prepaid offer state.
+- Coach: this week's fix (with the Hindi line), re-check date, history with worked / didn't work.
+- Earnings: earned (accrued), paid out, cash in stock at cost, days of cover, net cash position with an explanation, weekly payout bars, TCS/TDS credits, per-unit take-home.
+- Fixes found in the visual review:
+  - payout bars rendered empty;
+  - duplicate payout cards;
+  - "not listed yet" showed after the demo's auto-commit;
+  - expansion copy;
+  - re-check dates past day 90;
+  - orders row layout on narrow screens.
+
+**Tests**
+- New `operate.spec.ts` (8 flows):
+  - pack → hand over;
+  - "not ready" → urgent deadline → hand over;
+  - Pack Point lots and storage;
+  - sipper stop → casserole via the listing bot → Pack Point;
+  - returns highlight → claim;
+  - Sunita's escalation;
+  - Ayesha's prepaid offer;
+  - earnings lines.
+- New mid-story crawl: all three accounts on day 78, 77 routes, 1,016 clicks.
+- Both crawls, all e2e tests and 94 unit tests pass.

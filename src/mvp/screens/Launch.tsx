@@ -91,10 +91,10 @@ export default function Launch() {
               <li key={s.id} className="rounded-lg border border-line p-2 text-sm">
                 <div className="font-semibold">{s.name}</div>
                 <Row k={v.t.priceCap} v={inr(n.B)} />
-                <Row k="Your price" v={o.listed[s.id] ? inr(n.price) : 'not listed yet'} />
+                <Row k="Your price" v={o.listed[s.id] || committed !== null ? inr(n.price) : 'not listed yet'} />
                 <Row k={v.t.expectedOrders} v={`${num(d.daily.min, 1)}–${num(d.daily.max, 1)} a day`} />
                 <Row k={v.t.firstLot} v={`${num(o.lots[s.id] ?? d.lot.suggested)} units`} />
-                {!o.listed[s.id] && (
+                {!o.listed[s.id] && committed === null && (
                   <GoBtn to={`/app/list/${s.id}/product`} kind="secondary">
                     {v.t.listIt}
                   </GoBtn>

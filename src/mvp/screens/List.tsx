@@ -29,10 +29,12 @@ function Steps({ v, step, sku }: { v: AccountView; step: Step; sku: string }) {
 }
 
 function ProductStep({ v, spec }: { v: AccountView; spec: SkuSpec }) {
-  const [photos, setPhotos] = useState(v.state.onboarding.listed[spec.id] ? C.SAMPLE_PHOTOS.value.min : 0);
+  // Make-to-demand products come pre-filled from the maker's existing photos and listing.
+  const prefilled = !!v.state.onboarding.listed[spec.id] || !spec.inLaunch;
+  const [photos, setPhotos] = useState(prefilled ? C.SAMPLE_PHOTOS.value.min : 0);
   const [type, setType] = useState(spec.productType);
   const [changing, setChanging] = useState(false);
-  const [confirmed, setConfirmed] = useState(!!v.state.onboarding.listed[spec.id]);
+  const [confirmed, setConfirmed] = useState(prefilled);
   const [title, setTitle] = useState(`${spec.name} | ${v.persona.business.split(' ').slice(0, 3).join(' ')}`);
   const [weight, setWeight] = useState(String(spec.weightGrams));
   const attrs = spec.productType.split('·').map((s) => s.trim());

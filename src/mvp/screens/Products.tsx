@@ -40,7 +40,8 @@ export function skuFacts(v: AccountView, spec: SkuSpec) {
   const coachActive = v.active.some((n) => (n.type === 'coach_fix' || n.type === 'prepaid_nudge') && n.sku === spec.id);
   const restock = v.run.events.filter((e) => e.kind === 'restockPrompt' && e.skuId === spec.id && e.day <= v.day).at(-1);
   let status: Status = 'keep';
-  if (sd?.stopped || v.state.actions[`stop_sku:${spec.id}`]) status = 'stop';
+  const stoppedByEngine = v.run.events.some((e) => e.kind === 'slowSeller' && e.skuId === spec.id && e.day <= v.day);
+  if (sd?.stopped || stoppedByEngine || v.state.actions[`stop_sku:${spec.id}`]) status = 'stop';
   else if (!sd?.live) status = 'launching';
   else if (coachActive) status = 'fix';
   else if (onHand <= rop) status = 'makeMore';
@@ -75,7 +76,7 @@ export function Products() {
             <span className="min-w-0 flex-1">
               <span className="block font-semibold">{s.name}</span>
               <span className="block text-xs text-grey">
-                {inr(f.sd?.price ?? n.price)} · {num(f.onHand)} in stock · {f.cover === null ? 'no sales yet' : `${num(f.cover)} ${v.t.daysCover.toLowerCase()}`}
+                {inr(f.sd?.price ?? n.price)} · {num(f.onHand)} in stock · {f.status === 'stop' ? 'stopped' : f.cover === null ? 'no sales yet' : `${num(f.cover)} ${v.t.daysCover.toLowerCase()}`}
               </span>
             </span>
             <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${STATUS_STYLE[f.status]}`} data-testid={`status-${s.id}`}>
@@ -91,11 +92,11 @@ export function Products() {
         return (
           <Card key={e.skuId} tone="orange">
             <div className="flex items-center justify-between">
-              <H2>{v.t.makeInstead}</H2>
+              <H2>{e.data?.why === 'expand' ? 'Add this product' : v.t.makeInstead}</H2>
               <Chip kind="simulated" />
             </div>
             <p className="mt-1 text-sm">
-              <b>{s.name}</b>: {num(s.openGapWeek.min)}–{num(s.openGapWeek.max)} a week unserved, same material and machines. Cap {inr(s.bEpochs[0]!.B)}.
+              <b>{s.name}</b>: {s.openGapWeek.min === s.openGapWeek.max ? num(s.openGapWeek.min) : `${num(s.openGapWeek.min)}–${num(s.openGapWeek.max)}`} a week unserved, same material and machines. Cap {inr(s.bEpochs[0]!.B)}.
             </p>
             <div className="mt-2">
               {listed ? (
