@@ -131,7 +131,7 @@ function JourneyFor({ p, startChapter }: { p: PersonaSpec; startChapter: number 
   return (
     <JourneyContext.Provider value={ctx}>
       <main className="mx-auto w-full max-w-[1800px] flex-1 px-4 py-2 lg:px-6">
-        <Breadcrumbs trail={[{ label: 'Home', to: '/' }, { label: 'Personas', to: '/personas' }, { label: p.name, to: `/personas/${p.id}` }, { label: 'Journey' }]} />
+        <Breadcrumbs trail={[{ label: 'Home: choose a maker', to: '/' }, { label: `Journey: ${p.name}` }]} />
         <div className="mb-2 flex flex-wrap items-center gap-3">
           <h1 className="rounded-t-2xl rounded-b-md bg-plum px-4 py-1.5 font-display text-2xl font-bold text-white">The journey: {p.name}</h1>
           <StagePill>{p.cohort}</StagePill>
@@ -229,8 +229,8 @@ function JourneyFor({ p, startChapter }: { p: PersonaSpec; startChapter: number 
         </div>
 
         <nav aria-label="Page navigation" className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
-          <Go to={`/personas/${p.id}`} className="flex items-center gap-1.5 rounded-full border border-plum px-4 py-2 text-sm font-semibold text-plum hover:bg-blush">
-            <ArrowLeft size={16} aria-hidden /> {p.name}
+          <Go to="/" className="flex items-center gap-1.5 rounded-full border border-plum px-4 py-2 text-sm font-semibold text-plum hover:bg-blush">
+            <ArrowLeft size={16} aria-hidden /> Choose another maker
           </Go>
           <Go to={def.next} next className="flex items-center gap-1.5 rounded-full bg-orange px-5 py-2 text-sm font-semibold text-ink shadow-sm hover:brightness-105">
             Next: Control room <ArrowRight size={16} aria-hidden />

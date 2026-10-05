@@ -8,10 +8,9 @@ export interface TourStep {
 const j = (ch: number) => `/journey/hiren?ch=${ch}`;
 
 export const TOUR: TourStep[] = [
-  { to: '/', title: 'The pitch and the formula', caption: 'C2M price contribution = makers × share active at day 30 × orders per maker × price drop per order × share retained at day 90. Each term has an owner.' },
+  { to: '/', title: 'Choose a maker; the pitch and the formula', caption: 'Three makers (offline, online elsewhere, churned) each open their own journey. C2M price contribution = makers × share active at day 30 × orders per maker × price drop per order × share retained at day 90. Each term has an owner.' },
   { to: '/problem', title: 'The problem, and where each PS question is answered', caption: 'On a ₹265 order the middlemen take ₹72. Two problems: makers don’t come, and those who come don’t stay.' },
   { to: '/categories', title: 'Which categories, and which not', caption: 'Drag the weights: Apparel rises when returns matter less, but still fails the buyer tests. Scale ≠ cost edge; ownership is.' },
-  { to: '/personas', title: 'Three cohorts, one engine', caption: 'Offline only, online elsewhere, churned from Meesho: each with its own problem, path and 90-day outcome vs today.' },
   { to: j(0), title: 'Journey · Meesho finds the gap', caption: 'The demand engine sizes the open gap and computes benchmark B from 10 listings, with exclusions.' },
   { to: j(4), title: 'Journey · Cost check → listing bot', caption: 'Break-even ₹132 vs B ₹160 first; then three screens. Edit the margin: take-home updates live, and a price above B blocks go-live with the reason.' },
   { to: j(5), title: 'Journey · Who packs it? (Cluster Pack Point)', caption: 'At 34 makers the node fee is ₹44, more than the saving on a ₹148 bottle: self-ship now; the ₹265 casserole goes to the node once it passes 40 makers (₹30).' },

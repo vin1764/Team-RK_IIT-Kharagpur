@@ -3,8 +3,6 @@ import { Layout } from './Layout';
 import Landing from '../views/Landing';
 import Problem from '../views/Problem';
 import Categories from '../views/Categories';
-import Personas from '../views/Personas';
-import PersonaDetail from '../views/PersonaDetail';
 import Journey from '../views/Journey';
 import ControlRoom from '../views/ControlRoom';
 import Economics from '../views/Economics';
@@ -20,8 +18,6 @@ export function App() {
           <Route index element={<Landing />} />
           <Route path="problem" element={<Problem />} />
           <Route path="categories" element={<Categories />} />
-          <Route path="personas" element={<Personas />} />
-          <Route path="personas/:id" element={<PersonaDetail />} />
           <Route path="journey/:id" element={<Journey />} />
           <Route path="control-room" element={<ControlRoom />} />
           <Route path="economics" element={<Economics />} />

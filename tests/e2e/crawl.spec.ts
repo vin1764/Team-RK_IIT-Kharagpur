@@ -53,7 +53,7 @@ test('every data-nav link and button works, from #/ onward', async ({ page }) =>
 
   // Every section in the IA was reached by clicking.
   for (const r of [
-    '#/', '#/problem', '#/categories', '#/personas', '#/personas/hiren', '#/personas/ayesha', '#/personas/sunita',
+    '#/', '#/problem', '#/categories',
     '#/journey/hiren', '#/journey/ayesha', '#/journey/sunita', '#/control-room', '#/economics', '#/impact',
   ]) {
     expect(visited, `reached ${r}`).toContain(r);

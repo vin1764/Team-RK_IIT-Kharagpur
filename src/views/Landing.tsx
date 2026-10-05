@@ -11,6 +11,7 @@ import { Chip } from '../components/Chip';
 import { Num } from '../components/FormulaPopover';
 import { useApp } from '../app/store';
 import { runSim } from '../app/useSim';
+import { TOUR } from '../app/tour';
 import { C } from '../data/constants';
 import { inr, num } from '../lib/format';
 
@@ -53,6 +54,55 @@ export default function Landing() {
   ];
   return (
     <PageShell def={def} trail={[{ label: 'Home' }]} hideSummary>
+      <section className="mb-10" aria-labelledby="choose-maker">
+        <h2 id="choose-maker" className="mb-1 font-display text-2xl font-bold text-plum">
+          Choose a maker to see their journey
+        </h2>
+        <p className="mb-4 text-sm text-grey">Three makers, three starting points, one solution. Day −14 to day 90, through the maker’s phone, Meesho’s control room and the buyer’s phone.</p>
+        <div className="grid gap-4 md:grid-cols-3">
+          {PERSONAS.map((p) => {
+            const r = runSim({ personaId: p.id });
+            const cf = runSim({ personaId: p.id, counterfactual: true });
+            return (
+              <Go
+                key={p.id}
+                to={`/journey/${p.id}`}
+                label={`See ${p.name}’s journey`}
+                className="group flex flex-col rounded-2xl border-2 border-line bg-white p-5 shadow-sm transition-colors hover:border-orange"
+              >
+                <div className="mb-2 flex items-center justify-between">
+                  <StagePill>{p.cohort}</StagePill>
+                  {p.isHero && <StagePill tone="plum">Hero</StagePill>}
+                </div>
+                <div className="text-xl font-semibold">{p.name}</div>
+                <div className="text-sm text-grey">
+                  {p.business}, {p.city} · {p.category}
+                </div>
+                <p className="mt-3 font-display text-xl italic text-plum">“{p.mainAsk}”</p>
+                <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                  <div className="rounded-lg bg-blush p-2">
+                    <dt className="text-grey">Orders in 90 days</dt>
+                    <dd className="text-base font-bold text-plum">
+                      {num(r.kpis.totalOrders)} <span className="text-xs font-normal text-grey">vs {num(cf.kpis.totalOrders)} today</span>
+                    </dd>
+                  </div>
+                  <div className="rounded-lg bg-blush p-2">
+                    <dt className="text-grey">Earned (accrued)</dt>
+                    <dd className="text-base font-bold text-plum">
+                      {inr(r.kpis.takeHome)} <span className="text-xs font-normal text-grey">vs {inr(cf.kpis.takeHome)}</span>
+                    </dd>
+                  </div>
+                </dl>
+                <span className="mt-4 inline-flex items-center gap-1 self-start rounded-full bg-orange px-4 py-2 text-sm font-semibold text-ink group-hover:brightness-105">
+                  See {p.name.split(' ')[0]}’s journey <ArrowRight size={14} aria-hidden />
+                </span>
+              </Go>
+            );
+          })}
+        </div>
+        <p className="mt-2 text-[11px] text-grey">Synthetic makers; numbers are simulated, a forecast, not a guarantee.</p>
+      </section>
+
       <div className="mb-8 grid items-start gap-6 lg:grid-cols-[1fr_auto]">
         <div>
           <p className="mb-5 max-w-4xl font-display text-3xl text-plum">{PITCH}</p>
@@ -72,7 +122,7 @@ export default function Landing() {
           >
             <PlayCircle size={20} aria-hidden /> Start judge tour
           </button>
-          <p className="mt-2 text-sm text-grey">15 steps, about 4 minutes. Use → / ← or the arrows in the caption bar; Esc or ✕ exits.</p>
+          <p className="mt-2 text-sm text-grey">{TOUR.length} steps, about 4 minutes. Use → / ← or the arrows in the caption bar; Esc or ✕ exits.</p>
         </div>
         <div className="hidden justify-center lg:flex">
           <HeroPhone perMonth={perMonth} orders={orders30} />
@@ -95,26 +145,6 @@ export default function Landing() {
           = C2M price contribution. {FORMULA_FUEL}
         </p>
       </DashedPanel>
-
-      <h2 className="mb-3 font-display text-xl font-bold text-plum">Three makers, one engine</h2>
-      <div className="mb-8 grid gap-4 md:grid-cols-3">
-        {PERSONAS.map((p) => (
-          <Go key={p.id} to={`/personas/${p.id}`} className="group rounded-2xl border border-line bg-white p-4 shadow-sm hover:border-plum">
-            <div className="mb-2 flex items-center justify-between">
-              <StagePill>{p.cohort}</StagePill>
-              {p.isHero && <StagePill tone="plum">Hero</StagePill>}
-            </div>
-            <div className="text-lg font-semibold">{p.name}</div>
-            <div className="text-sm text-grey">
-              {p.business}, {p.city} · {p.category}
-            </div>
-            <p className="mt-2 font-display text-lg italic text-plum">“{p.mainAsk}”</p>
-            <span className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-magenta group-hover:underline">
-              Meet {p.name.split(' ')[0]} <ArrowRight size={14} aria-hidden />
-            </span>
-          </Go>
-        ))}
-      </div>
 
       <h2 className="mb-3 font-display text-xl font-bold text-plum">Answers the PS</h2>
       <div className="mb-8 grid gap-3 md:grid-cols-2">

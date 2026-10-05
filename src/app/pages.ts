@@ -45,28 +45,8 @@ export const PAGES: PageDef[] = [
     summary: 'Which categories have a defensible price advantage, which don’t despite scale, and why.',
     contains: ['Scorecard with editable weights', 'Category cards with status and special rules', 'Maker Type × Turnover filter', 'Run a 30-day launch simulation per category'],
     ps: ['Q1'],
-    next: '/personas',
+    next: '/journey/hiren',
     inNav: true,
-  },
-  {
-    path: '/personas',
-    nav: 'Personas',
-    title: 'Three cohorts of makers',
-    summary: 'Offline only, online elsewhere, churned from Meesho: one engine, three problems, three paths.',
-    contains: ['Side-by-side comparison', 'A card per persona'],
-    ps: ['Q2'],
-    next: '/personas/hiren',
-    inNav: true,
-  },
-  {
-    path: '/personas/:id',
-    nav: 'Persona',
-    title: 'Persona',
-    summary: 'Problem → what we heard → solution path → outcome vs the status quo.',
-    contains: ['Who they are', 'Their main question', 'Pain points on the 6-stage journey', 'What changes for them', '90-day outcome vs counterfactual'],
-    ps: ['Q2'],
-    next: '/journey/:id',
-    inNav: false,
   },
   {
     path: '/journey/:id',
@@ -117,7 +97,7 @@ export const page = (path: string): PageDef => {
 };
 
 /** Pages built so far. Unfinished pages keep their route (no dead links) but stay out of the nav and tiles. */
-export const READY = new Set(['/', '/problem', '/categories', '/personas', '/personas/:id', '/journey/:id', '/control-room', '/economics', '/impact']);
+export const READY = new Set(['/', '/problem', '/categories', '/journey/:id', '/control-room', '/economics', '/impact']);
 
 export const NAV_PAGES = PAGES.filter((p) => p.inNav && READY.has(p.path));
 
@@ -125,7 +105,7 @@ export const NAV_PAGES = PAGES.filter((p) => p.inNav && READY.has(p.path));
 export const PS_MAP: Record<'Q1' | 'Q2' | 'Q3' | 'Q4', { label: string; to: string }[]> = {
   Q1: [{ label: 'Category Lab', to: '/categories' }],
   Q2: [
-    { label: 'Personas', to: '/personas' },
+    { label: 'Choose a maker (home)', to: '/' },
     { label: 'Onboarding in the journey', to: '/journey/hiren' },
   ],
   Q3: [
