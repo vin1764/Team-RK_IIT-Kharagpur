@@ -1,0 +1,185 @@
+import { useMemo, useState } from 'react';
+import { usePersonaRuns } from '../app/useSim';
+import { C } from '../data/constants';
+import { PERSONA_SPECS, type PersonaId } from '../data/personas';
+import { packPointCost, packPointFeeTier } from '../engine/formulas';
+import { buildCtx, JourneyContext } from '../journey/ctx';
+import { DemandEngine, Districts, Gate1, Ledger, Cohort, Fault } from '../journey/ControlPanels';
+import { runSim } from '../app/useSim';
+import { useApp } from '../app/store';
+import { Chip } from '../components/Chip';
+import { MetricTile } from '../components/MetricTile';
+import { Num } from '../components/FormulaPopover';
+import { PanelTitle } from '../journey/parts';
+import { inr, num, dayLabel } from '../lib/format';
+import { SectionPage } from './SectionPage';
+
+const TABS = ['Demand engine', 'Ledger', 'Pack Point', 'Launch', 'Coach & KAM', 'Cohort'] as const;
+type Tab = (typeof TABS)[number];
+
+function PackPoint() {
+  const [makers, setMakers] = useState(C.PP_REFERENCE_MAKERS.value);
+  const cost = packPointCost(makers);
+  const fee = packPointFeeTier(makers);
+  const seed = useApp((s) => s.seed);
+  const hero = runSim({ personaId: 'hiren', seed });
+  const ppDays = hero.days.flatMap((d) => d.skus.filter((s) => s.skuId === 'casserole-1500' && s.live).map((s) => ({ day: d.day, s })));
+  const queue = ppDays.slice(-7);
+  return (
+    <div className="space-y-4">
+      <PanelTitle right={<Chip kind="partner" />}>Cluster Pack Point · fee by makers pooled</PanelTitle>
+      <label className="block text-sm">
+        Makers pooled: <strong>{makers}</strong>
+        <input type="range" min={10} max={90} value={makers} onChange={(e) => setMakers(Number(e.target.value))} className="w-full accent-plum" aria-label="Makers pooled" />
+      </label>
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+        <MetricTile label="Fee per delivered order" value={<Num f="packPointFee">{inr(fee.fee)}</Num>} target={`≤ ${inr(C.T_PACK_POINT_FEE.value)} at ≥ ${C.PP_REFERENCE_MAKERS.value} makers`} status={fee.fee <= C.T_PACK_POINT_FEE.value ? 'good' : 'warn'} />
+        <MetricTile label="Cost per order handled" value={<Num f="packPointCost">{inr(cost.costPerOrder, 1)}</Num>} />
+        <MetricTile label="Orders / month" value={num(cost.ordersPerMonth)} />
+        <MetricTile label="Staff · area" value={`${cost.staff} · ${num(cost.areaSqft)} sq ft`} />
+      </div>
+      <div className="flex flex-wrap gap-2 text-xs">
+        {C.PP_FEE_TIER_MAKERS.value.map((m) => (
+          <span key={m} className={`rounded-full px-3 py-1 font-semibold ${fee.tierMakers === m ? 'bg-plum text-white' : 'bg-blush text-plum'}`}>
+            {m} makers → {inr(packPointFeeTier(m).fee)}
+          </span>
+        ))}
+      </div>
+      <p className="text-xs text-grey">
+        Fee = cost per order × (1 + {C.PP_PARTNER_MARGIN_PCT.value}% partner margin) ÷ (1 − RTO). Storage free for {C.PP_STORAGE_FREE_DAYS.value} days, then ₹{C.PP_STORAGE_PER_UNIT_DAY.value}/unit/day; slow stock decided by day {C.PP_SLOW_STOCK_DECISION_DAY.value}. Self-ship always available.
+      </p>
+      <div>
+        <div className="mb-1 text-sm font-semibold text-plum">Ops queue · Rajkot node (Hiren’s casserole, last 7 days)</div>
+        <table className="w-full text-xs">
+          <thead className="text-grey">
+            <tr>
+              <th className="text-left">Day</th>
+              <th className="text-right">Picked & packed</th>
+              <th className="text-right">QC (photo + weight)</th>
+              <th className="text-right">Delivered</th>
+              <th className="text-right">Returns weighed</th>
+              <th className="text-right">Swaps caught</th>
+            </tr>
+          </thead>
+          <tbody>
+            {queue.map(({ day, s }) => (
+              <tr key={day} className="border-t border-line">
+                <td>{dayLabel(day)}</td>
+                <td className="text-right">{s.orders}</td>
+                <td className="text-right text-good">{s.orders} ✓</td>
+                <td className="text-right">{s.delivered}</td>
+                <td className="text-right">{s.returnRequests}</td>
+                <td className="text-right">{s.returnsByReason.swap}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function CoachKam() {
+  const seed = useApp((s) => s.seed);
+  const rows = PERSONA_SPECS.flatMap((p) =>
+    runSim({ personaId: p.id, seed })
+      .events.filter((e) => ['coachNudge', 'fixRecheck', 'kamCase', 'newRule'].includes(e.kind))
+      .map((e) => ({ p, e })),
+  ).sort((a, b) => a.e.day - b.e.day);
+  const ladder = ['Auto metric watch', 'Coach nudge', 'One-tap fix', `Re-check after ${C.FIX_RECHECK_DAYS.value} days`, 'KAM only if a fix fails twice'];
+  return (
+    <div className="space-y-4">
+      <PanelTitle right={<><Chip kind="new" /><Chip kind="existing">Existing Meesho: KAM</Chip></>}>Intervention ladder</PanelTitle>
+      <ol className="grid grid-cols-5 gap-2 text-center text-xs">
+        {ladder.map((x, i) => (
+          <li key={x} className={`rounded-lg p-2 font-semibold ${i === 4 ? 'bg-plum text-white' : 'bg-blush text-plum'}`}>
+            {i + 1}. {x}
+          </li>
+        ))}
+      </ol>
+      <table className="w-full text-xs">
+        <thead className="text-grey">
+          <tr>
+            <th className="text-left">Day</th>
+            <th className="text-left">Maker</th>
+            <th className="text-left">Queue item</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(({ p, e }, i) => (
+            <tr key={i} className={`border-t border-line align-top ${e.kind === 'kamCase' || e.kind === 'newRule' ? 'bg-orange-soft/60' : ''}`}>
+              <td className="py-1">{dayLabel(e.day)}</td>
+              <td className="py-1 font-semibold">{p.name}</td>
+              <td className="py-1">{e.text}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="text-xs text-grey">Each KAM case becomes a coach rule, so makers per manager rises with every launch.</p>
+    </div>
+  );
+}
+
+export default function ControlRoom() {
+  const [tab, setTab] = useState<Tab>('Demand engine');
+  const [pid, setPid] = useState<PersonaId>('hiren');
+  const p = PERSONA_SPECS.find((x) => x.id === pid)!;
+  const { base, cf } = usePersonaRuns(pid);
+  const ctxAt = useMemo(() => (chapter: number, day: number) => buildCtx(p, base, cf, chapter, day), [p, base, cf]);
+  const live = C.LAUNCH_LIVE_DAYS.value;
+  return (
+    <SectionPage path="/control-room">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap gap-1 rounded-full bg-blush p-1" role="tablist" aria-label="Control room tabs">
+          {TABS.map((t) => (
+            <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={`rounded-full px-3 py-1 text-sm font-semibold ${tab === t ? 'bg-plum text-white' : 'text-plum'}`}>
+              {t}
+            </button>
+          ))}
+        </div>
+        <div className="ml-auto flex items-center gap-1 text-xs">
+          <span className="text-grey">Maker:</span>
+          {PERSONA_SPECS.map((x) => (
+            <button key={x.id} type="button" onClick={() => setPid(x.id)} aria-pressed={pid === x.id} className={`rounded-full px-3 py-1 font-semibold ${pid === x.id ? 'bg-plum text-white' : 'border border-line bg-white text-plum'}`}>
+              {x.name.split(' ')[0]}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="rounded-2xl border-2 border-dashed border-plum/50 bg-white p-4 text-sm">
+        {tab === 'Demand engine' && (
+          <JourneyContext.Provider value={ctxAt(0, C.TIMELINE_DAYS.value.min)}>
+            <DemandEngine />
+          </JourneyContext.Provider>
+        )}
+        {tab === 'Ledger' && (
+          <JourneyContext.Provider value={ctxAt(4, C.CHAPTER_DAYS.value[4]!)}>
+            <Ledger />
+          </JourneyContext.Provider>
+        )}
+        {tab === 'Pack Point' && <PackPoint />}
+        {tab === 'Launch' && (
+          <div className="grid gap-6 xl:grid-cols-2">
+            <JourneyContext.Provider value={ctxAt(7, live.max)}>
+              <Districts />
+            </JourneyContext.Provider>
+            <JourneyContext.Provider value={ctxAt(9, C.GATE_DAYS.value[0]!)}>
+              <Gate1 />
+            </JourneyContext.Provider>
+            <div className="xl:col-span-2">
+              <JourneyContext.Provider value={ctxAt(8, C.STICK_WINDOW_DAYS.value.max)}>
+                <Fault />
+              </JourneyContext.Provider>
+            </div>
+          </div>
+        )}
+        {tab === 'Coach & KAM' && <CoachKam />}
+        {tab === 'Cohort' && (
+          <JourneyContext.Provider value={ctxAt(13, C.GATE_DAYS.value[2]!)}>
+            <Cohort />
+          </JourneyContext.Provider>
+        )}
+      </div>
+    </SectionPage>
+  );
+}
