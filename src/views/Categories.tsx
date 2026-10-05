@@ -144,13 +144,28 @@ function SimResultCard({ c }: { c: CategoryCard }) {
         <Stat label="Returns" value={pctText(k.returnRatePct, 1)} />
         <Stat label="Below B" value={<Num f="priceDropDelivered">{pctText(k.priceDropAtLaunchPct, 1)}</Num>} />
         <Stat label="Stick rate" value={<Num f="stickRate">{num(g.inputs[0]!.value, 2)}</Num>} />
-        <Stat label="Lift" value={<Num f="lift">{`${num(g.inputs[1]!.value, 1)}×`}</Num>} />
+        <Stat label="vs control" value={<Num f="lift">{`+${num((g.inputs[1]!.value - 1) * 100)}%`}</Num>} />
         <Stat
           label="Day-30 rule"
-          value={<span className={g.decision === 'Invest' ? 'text-good' : g.decision === 'Tighten' ? 'text-warn' : 'text-bad'}>{g.decision}</span>}
+          value={
+            c.gate ? (
+              <span className="text-warn">Gated</span>
+            ) : (
+              <span className={g.decision === 'Invest' ? 'text-good' : g.decision === 'Tighten' ? 'text-warn' : 'text-bad'}>{g.decision}</span>
+            )
+          }
         />
       </div>
-      <p className="mt-1 text-[10px] text-grey">
+      {c.gate ? (
+        <div className="mt-2 rounded-lg border-2 border-dashed border-warn bg-warn/10 px-2 py-1 text-[11px] font-semibold text-ink" data-testid={`gated-${c.id}`}>
+          Gated: {c.id === 'footwear' ? 'awaiting ~10 weeks of Home & Kitchen return data' : c.gate.toLowerCase()}. No order book until the gate passes. Preview sim:{' '}
+          {g.decision}
+          {g.decision !== 'Invest' ? ` (${g.reason.toLowerCase()})` : ''}.
+        </div>
+      ) : (
+        g.decision !== 'Invest' && <p className="mt-1 text-[11px] font-semibold text-warn">{g.reason}</p>
+      )}
+      <p className="mt-1 text-[11px] text-grey">
         {c.sim.name} at {inr(listPrice(c.sim.stack, c.sim.margin, c.sim.gstRatePct))}, same engine as the personas.
       </p>
     </div>

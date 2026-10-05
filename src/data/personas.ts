@@ -34,7 +34,7 @@ export type LatentIssue =
   | { kind: 'highRefusals'; nudgedCodSharePct: number; cause: string }
   | {
       kind: 'tarnish';
-      /** Extra return rate (pp) that shows up as "expectation" returns; listing fixes don't touch it. */
+      /** Extra return rate (pp), product reasons (finish changes colour); only the KAM's plating fix removes it. */
       extraReturnPct: number;
       /** Share of the visible expectation returns each listing fix removes. */
       listingFixEffect: number;
@@ -79,6 +79,10 @@ export interface SkuSpec {
   demandShifts: { fromDay: number; factor: number }[];
   latent: LatentIssue[];
   weightGrams: number;
+  /** Product-reason return rate above which the coach suggests a product fix (pp). */
+  typeProductReturnP75Pct?: number;
+  /** Category norm for "not as described" (product-reason) returns, if not the SKU's own base mix (pp). */
+  nadNormPct?: number;
   /** GST rate if not the 5% default (steel kitchenware, imitation jewellery, mass footwear). */
   gstRatePct?: number;
 }
@@ -171,6 +175,29 @@ const sipper: SkuSpec = {
   weightGrams: 210,
 };
 
+const lunchBox: SkuSpec = {
+  ...bottle,
+  id: 'lunchbox-3tier',
+  name: '3-tier steel lunch box',
+  productType: 'Steel lunch box · 3 tier',
+  // Packaging slot holds the Pack Point fee at ≥ 40 makers: the node packs.
+  stack: { makingCost: 120, packaging: C.T_PACK_POINT_FEE.value, shippingAndFee: 45, returnsBuffer: 9 },
+  margin: 18,
+  bEpochs: [{ fromDay: C.TIMELINE_DAYS.value.min, B: 255 }],
+  resellerPrice: 299,
+  openGapWeek: { min: 160, max: 200 },
+  committedWeek: 60,
+  establishedMedianPerDay: 8,
+  ctrPct: 4.0,
+  returnFee: 50,
+  packLaterLot: 0,
+  fulfilment: 'packPoint',
+  liveFromDay: Infinity,
+  inLaunch: false,
+  latent: [],
+  weightGrams: 540,
+};
+
 const casserole: SkuSpec = {
   ...bottle,
   id: 'casserole-1500',
@@ -254,6 +281,8 @@ const jewellery: SkuSpec = {
   returnRatePct: 20,
   returnMix: { product: 0.2, expectation: 0.55, size: 0, swap: 0.25 },
   typeReturnP75Pct: 22,
+  typeProductReturnP75Pct: 6,
+  nadNormPct: 7,
   returnFee: 35,
   codSharePct: 80,
   codFailPct: 31,
@@ -270,9 +299,9 @@ const jewellery: SkuSpec = {
   latent: [
     {
       kind: 'tarnish',
-      extraReturnPct: 10,
-      listingFixEffect: 0.3,
-      cause: 'Plating tarnishes within days; buyers report it as "looks different from the photo"',
+      extraReturnPct: 5,
+      listingFixEffect: 0.6,
+      cause: 'Plating tarnishes within days (returned as "colour changed"); the maker’s own lacquer fixes don’t reach the plating step',
       newRule: 'Tarnish complaints → plating check',
     },
     { kind: 'highRefusals', nudgedCodSharePct: 62, cause: 'Fake COD orders and refusals on a COD-heavy base' },
@@ -293,7 +322,7 @@ export const PERSONA_SPECS: PersonaSpec[] = [
     isHero: true,
     launchNo: 1,
     skus: [bottle, sipper],
-    switchOptions: [casserole],
+    switchOptions: [casserole, lunchBox],
     node: {
       startMakers: C.HERO_NODE_START_MAKERS.value,
       crossDay: C.HERO_NODE_CROSS_DAY.value,
@@ -336,4 +365,4 @@ export const PERSONAS: PersonaSummary[] = PERSONA_SPECS;
 
 export const personaById = (id: string | undefined) => PERSONA_SPECS.find((p) => p.id === id);
 
-export const SKUS = { bottle, sipper, casserole, bowls, jewellery };
+export const SKUS = { bottle, sipper, casserole, lunchBox, bowls, jewellery };

@@ -10,11 +10,15 @@ export function MetricTile({
   value,
   label,
   target,
+  caption,
   status = 'none',
 }: {
   value: ReactNode;
   label: ReactNode;
+  /** A real target: shown as "Target: …". */
   target?: ReactNode;
+  /** Any other context line: shown as is. */
+  caption?: ReactNode;
   status?: StatusTone;
 }) {
   return (
@@ -25,6 +29,7 @@ export function MetricTile({
       </div>
       <div className="font-display text-3xl font-bold text-plum">{value}</div>
       {target && <div className="text-[11px] text-grey">Target: {target}</div>}
+      {caption && <div className="text-[11px] text-grey">{caption}</div>}
     </div>
   );
 }

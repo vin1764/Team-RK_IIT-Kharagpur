@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Check, Lock, MessageCircle, Package, Truck } from 'lucide-react';
 import { C } from '../data/constants';
-import { costCheck, channelTakeHome, expectedDailyPerSku, firstLot, listPrice, packPointRecommended, payoutDay, savingPerOrder, takeHome } from '../engine/formulas';
+import { costCheck, channelTakeHome, expectedDailyPerSku, firstLot, listPrice, packPointFeeFor, packPointRecommended, payoutDay, savingPerOrder, takeHome } from '../engine/formulas';
 import { useMakerStrings } from '../components/MakerPhone';
 import { Chip } from '../components/Chip';
 import { inr, num, pctText, dayLabel } from '../lib/format';
@@ -178,8 +178,28 @@ function ListingBot({ t }: { t: MakerStrings }) {
       <Chip kind="simulated">Simulated AI listing bot</Chip>
       {step === 0 && (
         <PhoneCard>
-          <div className="flex justify-center rounded-xl bg-blush py-3">
-            <ProductArt type={s.productType} className="h-28" />
+          <div className="grid grid-cols-2 gap-2">
+            <figure className="text-center">
+              <div className="relative flex h-28 items-center justify-center overflow-hidden rounded-xl bg-[#3b2a26]">
+                {/* The maker's own shot: dark counter, clutter, tilted. */}
+                <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full" aria-hidden>
+                  <rect x="4" y="62" width="30" height="20" rx="3" fill="#6b4f3f" />
+                  <circle cx="82" cy="70" r="12" fill="#5a463a" />
+                  <rect x="60" y="10" width="34" height="8" rx="2" fill="#7a5b49" />
+                  <rect x="0" y="86" width="100" height="14" fill="#2a1d1a" />
+                </svg>
+                <div className="relative -rotate-12 opacity-70">
+                  <ProductArt type={s.productType} className="h-20" />
+                </div>
+              </div>
+              <figcaption className="mt-1 text-[11px] text-grey">Your photo</figcaption>
+            </figure>
+            <figure className="text-center">
+              <div className="flex h-28 items-center justify-center rounded-xl border border-line bg-white">
+                <ProductArt type={s.productType} className="h-24" />
+              </div>
+              <figcaption className="mt-1 text-[11px] font-semibold text-good">Cleaned: white background</figcaption>
+            </figure>
           </div>
           <p className="mt-2 text-sm text-magenta">Recognised: {s.productType}. Is this right?</p>
           <p className="mt-1 text-lg font-semibold">{s.name}</p>
@@ -235,31 +255,46 @@ function Fulfilment({ t }: { t: MakerStrings }) {
   const j = useJourney();
   const rec = packPointRecommended(j.price);
   const self = savingPerOrder(j.price, 'selfShip');
-  const pp = savingPerOrder(j.price, 'packPoint');
+  // The fee at today's pool size, not the 40-maker fee.
+  const makers = j.p.node ? j.ds.nodeMakers : 0;
+  const fee = makers > 0 ? packPointFeeFor(makers) : null;
+  const pp = makers > 0 ? savingPerOrder(j.price, 'packPoint', makers) : null;
+  const waits = makers > 0 && makers < C.PP_REFERENCE_MAKERS.value;
   const alt = j.p.switchOptions.find((s) => packPointRecommended(listPrice(s.stack, s.margin)));
   return (
     <div className="space-y-3">
       <h2 className="text-2xl font-semibold">{t.fulfilment}</h2>
-      {[
-        { k: 'self', title: t.selfShip, icon: <Truck aria-hidden />, saving: self.saving, recd: !rec, tag: 'existing' as const },
-        { k: 'pp', title: t.packPoint, icon: <Package aria-hidden />, saving: pp.saving, recd: rec, tag: 'partner' as const },
-      ].map((o) => (
-        <PhoneCard key={o.k} tone={o.recd ? 'orange' : 'white'}>
-          <div className="flex items-center gap-2 text-lg font-semibold">
-            {o.icon} {o.title}
-            {o.recd && <span className="ml-auto rounded-full bg-orange px-2 py-0.5 text-xs">{t.recommended}</span>}
-          </div>
-          <p className="text-sm text-grey">Saving you can pass on per order: {inr(o.saving)}</p>
-          <div className="mt-1">
-            <Chip kind={o.tag} />
-          </div>
-        </PhoneCard>
-      ))}
+      <PhoneCard tone={!rec || waits || !pp ? 'orange' : 'white'}>
+        <div className="flex items-center gap-2 text-lg font-semibold">
+          <Truck aria-hidden /> {t.selfShip}
+          {(!rec || waits || !pp) && <span className="ml-auto rounded-full bg-orange px-2 py-0.5 text-xs">{t.recommended}</span>}
+        </div>
+        <p className="text-sm text-grey">Saving you can pass on per order: {inr(self.saving)}</p>
+        <div className="mt-1">
+          <Chip kind="existing" />
+        </div>
+      </PhoneCard>
+      <PhoneCard tone={rec && !waits && pp ? 'orange' : 'white'}>
+        <div className="flex items-center gap-2 text-lg font-semibold">
+          <Package aria-hidden /> {t.packPoint}
+        </div>
+        {pp && fee !== null ? (
+          <p className={`text-sm ${pp.saving < 0 ? 'font-semibold text-bad' : 'text-grey'}`}>
+            At {makers} makers the fee is {inr(fee)}: saving per order {inr(pp.saving)}
+            {waits ? `. The node waits until ${C.PP_REFERENCE_MAKERS.value} makers (fee ${inr(packPointFeeFor(C.PP_REFERENCE_MAKERS.value))}).` : '.'}
+          </p>
+        ) : (
+          <p className="text-sm text-grey">No Pack Point in {j.p.city} yet.</p>
+        )}
+        <div className="mt-1">
+          <Chip kind="partner" />
+        </div>
+      </PhoneCard>
       <p className="text-base">
         At {inr(j.price)}{' '}
-        {rec
+        {rec && !waits && pp
           ? 'the Pack Point is worth it.'
-          : `the Pack Point fee eats most of your saving: self-ship this one${alt ? `, and use the Pack Point for your ${alt.name} (${inr(listPrice(alt.stack, alt.margin))})` : ''}.`}
+          : `${rec ? 'self-ship until the node passes ' + C.PP_REFERENCE_MAKERS.value + ' makers' : `the Pack Point fee eats your saving: self-ship this one${alt ? `, and use the Pack Point for your ${alt.name} (${inr(listPrice(alt.stack, alt.margin))}) once the node passes ${C.PP_REFERENCE_MAKERS.value} makers` : ''}`}.`}
       </p>
     </div>
   );

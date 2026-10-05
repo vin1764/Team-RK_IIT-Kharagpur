@@ -1,10 +1,12 @@
 import type { ReactNode } from 'react';
 import { CheckCircle2, AlertTriangle, XCircle } from 'lucide-react';
 
-export type Decision = 'Invest' | 'Tighten' | 'Stop';
+/** Gates 1 and 3: Invest / Tighten / Stop. Gate 2: Continue / Tighten. */
+export type Decision = 'Invest' | 'Tighten' | 'Stop' | 'Continue';
 
 const STYLE: Record<Decision, { cls: string; icon: ReactNode }> = {
   Invest: { cls: 'border-good bg-good/10 text-good', icon: <CheckCircle2 size={22} aria-hidden /> },
+  Continue: { cls: 'border-good bg-good/10 text-good', icon: <CheckCircle2 size={22} aria-hidden /> },
   Tighten: { cls: 'border-warn bg-warn/10 text-warn', icon: <AlertTriangle size={22} aria-hidden /> },
   Stop: { cls: 'border-bad bg-bad/10 text-bad', icon: <XCircle size={22} aria-hidden /> },
 };
@@ -15,11 +17,13 @@ export function DecisionCard({
   gate,
   rule,
   inputs,
+  reason,
 }: {
   decision: Decision;
   gate: string;
   rule: string;
   inputs: { label: string; value: ReactNode; pass: boolean }[];
+  reason?: string;
 }) {
   const s = STYLE[decision];
   return (
@@ -41,6 +45,7 @@ export function DecisionCard({
           </li>
         ))}
       </ul>
+      {reason && <p className="mt-2 text-sm font-semibold text-ink">{reason}</p>}
       <p className="mt-3 rounded-lg bg-cream p-2 text-xs text-ink">
         <span className="font-semibold">Rule, fixed in advance: </span>
         {rule}

@@ -129,7 +129,12 @@ export const PERSONA_STORY: Record<PersonaId, PersonaStory> = {
     takeaway: 'Diagnose why the old listing failed before asking her to come back.',
     levers: [
       { stage: 'Decide', lever: 'Win-back diagnosis', change: `Old listing: ${wb.views.toLocaleString('en-IN')} views → ${wb.clicks} clicks; ${wb.likelyReason.toLowerCase()} the likely reason; refusals ${wb.refusalPct}% vs ${wb.categoryRefusalPct}%.`, tag: 'new' },
-      { stage: 'Go live', lever: 'Inherited seller-level quality score', change: 'Unrated new listings start from her seller score, not zero.', tag: 'existing' },
+      {
+        stage: 'Go live',
+        lever: 'Launch ratings down-weighted + a fresh listing-level score',
+        change: 'Her old seller score stops dragging new listings: each one builds its own quality score from launch, and launch ratings count less.',
+        tag: 'new',
+      },
       {
         stage: 'Get & fulfil',
         lever: 'Self-ship below the Pack Point threshold',

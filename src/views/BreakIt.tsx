@@ -25,12 +25,14 @@ const STORY: Record<ScenarioId, string[]> = {
   saleWeekB: [],
 };
 
+const liftText = (x: number) => `${x >= 1 ? '+' : '−'}${num(Math.abs(x - 1) * 100)}%`;
+
 function compare(base: SimResult, s: SimResult) {
   const g = (r: SimResult) => r.gates;
   return [
     { label: 'Gate 1 (day 30)', base: g(base).g1?.decision ?? '—', s: g(s).g1?.decision ?? '—' },
     { label: 'Stick rate', base: num(g(base).g1?.inputs[0]?.value ?? 0, 2), s: num(g(s).g1?.inputs[0]?.value ?? 0, 2) },
-    { label: 'Lift', base: `${num(g(base).g1?.inputs[1]?.value ?? 0, 2)}×`, s: `${num(g(s).g1?.inputs[1]?.value ?? 0, 2)}×` },
+    { label: 'Lift vs matched control', base: liftText(g(base).g1?.inputs[1]?.value ?? 1), s: liftText(g(s).g1?.inputs[1]?.value ?? 1) },
     { label: 'Gate 2 (day 60)', base: `${g(base).g2?.decision} · Pack Point ${g(base).g2?.packPoint.verdict.toLowerCase()}`, s: `${g(s).g2?.decision} · Pack Point ${g(s).g2?.packPoint.verdict.toLowerCase()} (${inr(g(s).g2?.packPoint.fee ?? 0)})` },
     { label: 'Orders (90 days)', base: num(base.kpis.totalOrders), s: num(s.kpis.totalOrders) },
     { label: 'Take-home', base: inr(base.kpis.takeHome), s: inr(s.kpis.takeHome) },
@@ -50,11 +52,11 @@ export default function BreakIt() {
   return (
     <SectionPage path="/break-it">
       <div className="mb-4 flex flex-wrap gap-2">
-        {IDS.map((x) => {
+        {IDS.map((x, i) => {
           const s = scenarioById(x);
           return (
             <button key={x} type="button" aria-pressed={id === x} onClick={() => setId(x)} className={`flex items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-sm font-semibold ${id === x ? 'border-plum bg-plum text-white' : 'border-line bg-white text-plum'}`}>
-              <Zap size={14} aria-hidden /> {s.n}. {s.title}
+              <Zap size={14} aria-hidden /> {i + 1}. {s.title}
             </button>
           );
         })}
@@ -116,7 +118,7 @@ export default function BreakIt() {
       </div>
       {g1 && (
         <div className="mt-4 max-w-xl">
-          <DecisionCard decision={g1.decision} gate="Gate 1 in this scenario" rule={g1.rule} inputs={g1.inputs.map((i) => ({ label: i.label, value: i.unit === '%' ? pctText(i.value, 1) : i.unit === '×' ? `${num(i.value, 2)}×` : num(i.value, 2), pass: i.pass }))} />
+          <DecisionCard decision={g1.decision} gate="Gate 1 in this scenario" rule={g1.rule} inputs={g1.inputs.map((i) => ({ label: i.label, value: i.unit === '%' ? pctText(i.value, 1) : i.unit === '×' ? `${liftText(i.value)} vs baseline` : num(i.value, 2), pass: i.pass }))} />
         </div>
       )}
     </SectionPage>

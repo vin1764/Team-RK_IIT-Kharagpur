@@ -33,15 +33,16 @@ export interface Gate1Result {
 }
 
 export const GATE1_RULE =
-  'Invest if stick rate ≥ 0.5 AND lift ≥ 1.5× AND sell-through ≥ 60% AND prices held. Tighten if lift is positive but < 1.5×, or stick rate < 0.5, or durability is short → adjust B or eligibility, rerun once. Stop if there is no lift or prices didn’t hold.';
+  'Invest if stick rate ≥ 0.5 AND lift ≥ 1.5× AND sell-through ≥ 60% AND prices held AND returns within the category band. Tighten if lift is positive but < 1.5×, or stick rate < 0.5, or durability is short (returns above the band) → fix, rerun once at the next Launch Week. Stop if there is no lift or prices didn’t hold.';
 
 /** Day-30 rule. `liftX` ≤ 1 counts as "no lift". */
-export function gate1(m: { stickRate: number; liftX: number; sellThroughPct: number; pricesHeldPct: number }): Gate1Result {
+export function gate1(m: { stickRate: number; liftX: number; sellThroughPct: number; pricesHeldPct: number; returnRatePct: number; returnBandPct: number }, day = C.GATE_DAYS.value[0]!): Gate1Result {
   const inputs = [
     input('Stick rate', m.stickRate, C.T_STICK_RATE_D30.value, 'ratio'),
     input('Demand lift', m.liftX, C.T_DEMAND_LIFT.value, '×'),
     input('Sell-through', m.sellThroughPct, C.T_SELL_THROUGH_PCT.value, '%'),
     input('Prices held', m.pricesHeldPct, C.T_PRICES_HELD_PCT.value, '%'),
+    input('Returns (durability)', m.returnRatePct, m.returnBandPct, '%', 'max'),
   ];
   const pricesHeld = inputs[3]!.pass;
   let decision: Gate1Decision;
@@ -56,10 +57,11 @@ export function gate1(m: { stickRate: number; liftX: number; sellThroughPct: num
     decision = 'Tighten';
     reason = `Missed: ${inputs.filter((i) => !i.pass).map((i) => i.label.toLowerCase()).join(', ')}`;
   }
-  return { day: C.GATE_DAYS.value[0]!, decision, inputs, rule: GATE1_RULE, reason };
+  return { day, decision, inputs, rule: GATE1_RULE, reason };
 }
 
 export type Gate2Decision = 'Continue' | 'Tighten';
+export type Gate3Decision = 'Invest' | 'Tighten' | 'Stop';
 
 export interface Gate2Result {
   day: number;
@@ -68,10 +70,11 @@ export interface Gate2Result {
   watch: GateInput[];
   packPoint: { verdict: 'Pays' | 'Waits'; nodeMakers: number; fee: number; applies: boolean };
   rule: string;
+  reason: string;
 }
 
 export const GATE2_RULE =
-  'Continue if the saving is durable: prices held ≥ 95% through B moves and stock-outs ≤ 1 per listing per month. Pack Point pays once the node has ≥ 40 makers (fee ≤ ₹30); otherwise it waits and makers self-ship.';
+  'Continue if the saving is durable: prices held ≥ 95% through B moves, stock-outs ≤ 1 per listing per month, AND stick rate ≥ 1.0 at day 60. Otherwise Tighten (coach and restock focus, re-check at day 90). Pack Point pays once the node has ≥ 40 makers (fee ≤ ₹30); otherwise it waits and makers self-ship.';
 
 export function gate2(m: {
   pricesHeldPct: number;
@@ -84,11 +87,17 @@ export function gate2(m: {
   const durability = [
     input('Prices held (days 31–60)', m.pricesHeldPct, C.T_PRICES_HELD_PCT.value, '%'),
     input('Stock-outs', m.stockOutsPerListingMonth, C.T_STOCKOUTS_PER_LISTING_MONTH.value, 'per listing-month', 'max'),
+    input('Stick rate at day 60', m.stickRateD60, C.T_STICK_RATE_D60.value, 'ratio'),
   ];
-  const watch = [input('Stick rate at day 60', m.stickRateD60, C.T_STICK_RATE_D60.value, 'ratio')];
+  const watch: GateInput[] = [];
+  const missed = durability.filter((d) => !d.pass);
   return {
     day: C.GATE_DAYS.value[1]!,
-    decision: durability.every((d) => d.pass) ? 'Continue' : 'Tighten',
+    decision: missed.length === 0 ? 'Continue' : 'Tighten',
+    reason:
+      missed.length === 0
+        ? 'Saving durable'
+        : `Missed: ${missed.map((x) => `${x.label.toLowerCase()} ${x.unit === 'ratio' ? x.value.toFixed(2) : x.value.toFixed(1)} vs ${x.sense === 'min' ? '≥' : '≤'} ${x.target}`).join('; ')}`,
     durability,
     watch,
     packPoint: {
@@ -101,18 +110,17 @@ export function gate2(m: {
   };
 }
 
-export type Gate3Decision = 'Scale' | 'Stop';
-
 export interface Gate3Result {
   day: number;
   decision: Gate3Decision;
   inputs: GateInput[];
   watch: GateInput[];
   rule: string;
+  reason: string;
 }
 
 export const GATE3_RULE =
-  'Scale if, at cohort level, makers active at day 90 ≥ 60% AND the price drop delivered ≥ 8% of B. Otherwise stop and rework before the next cohort.';
+  'Invest (scale) if, at cohort level, makers active at day 90 ≥ 60% AND the price drop delivered ≥ 8% of B AND the day-60 checks pass (makers active ≥ 70%, second lot by day 45 ≥ 50%). Tighten if the two headline checks pass but a day-60 check misses. Stop if a headline check misses.';
 
 export function gate3(m: { makersActiveD90Pct: number; cohortPriceDropPct: number; secondLotByD45Pct: number; makersActiveD60Pct: number }): Gate3Result {
   const inputs = [
@@ -123,5 +131,7 @@ export function gate3(m: { makersActiveD90Pct: number; cohortPriceDropPct: numbe
     input('Makers active at day 60', m.makersActiveD60Pct, C.T_MAKERS_ACTIVE_D60_PCT.value, '%'),
     input('Second lot by day 45', m.secondLotByD45Pct, C.T_SECOND_LOT_BY_D45_PCT.value, '%'),
   ];
-  return { day: C.GATE_DAYS.value[2]!, decision: inputs.every((i) => i.pass) ? 'Scale' : 'Stop', inputs, watch, rule: GATE3_RULE };
+  const decision: Gate3Decision = !inputs.every((i) => i.pass) ? 'Stop' : !watch.every((i) => i.pass) ? 'Tighten' : 'Invest';
+  const missed = [...inputs, ...watch].filter((i) => !i.pass).map((i) => i.label.toLowerCase());
+  return { day: C.GATE_DAYS.value[2]!, decision, inputs, watch, rule: GATE3_RULE, reason: missed.length ? `Missed: ${missed.join(', ')}` : 'Every check met' };
 }

@@ -328,6 +328,65 @@ export const lift = (launchOrdersPerDistrict: number, controlOrdersPerDistrict: 
 
 export const sellThrough = (sold: number, stocked: number) => (stocked === 0 ? 0 : sold / stocked);
 
+/**
+ * Matched district pairs: launch and control districts sorted by baseline demand share and paired
+ * rank by rank, so each launch district is compared with a control district of similar size.
+ */
+export function matchedPairs<T extends { launch: boolean; weight: number }>(districts: readonly T[]): { launch: T; control: T }[] {
+  const L = districts.filter((d) => d.launch).sort((a, b) => b.weight - a.weight);
+  const Cn = districts.filter((d) => !d.launch).sort((a, b) => b.weight - a.weight);
+  return L.slice(0, Cn.length).map((l, i) => ({ launch: l, control: Cn[i]! }));
+}
+
+/** Difference vs baseline (%): treated ÷ baseline − 1, where the baseline is the matched control scaled to the same demand share. */
+export const diffVsBaselinePct = (treated: number, baseline: number) => (baseline === 0 ? 0 : 100 * (treated / baseline - 1));
+
+/**
+ * From one simulated maker to the deck's annual saving: simulated run-rate per SKU → SKU expansion
+ * (make to demand) → mature run-rate → × makers → orders × saving per order.
+ */
+export function scaleBridge(sim: { unitsLast30: number; liveSkus: number }) {
+  const skus = C.MATURE_SKUS.value;
+  const skusMid = (skus.min + skus.max) / 2;
+  const matureMonthly = C.MATURE_UNITS_PER_MONTH.value;
+  const perSkuSim = sim.liveSkus === 0 ? 0 : sim.unitsLast30 / sim.liveSkus;
+  const perSkuMature = matureMonthly / skusMid;
+  const matureYearly = matureMonthly * 12;
+  const savingPerOrder_ = savingPerOrder(C.AOV.value, 'selfShip').saving;
+  const savingPerMakerYear = matureYearly * savingPerOrder_;
+  const crore = 1e7;
+  const deckCr = C.DECK_C2M_SAVING_CR.value;
+  const makersForDeck = (deckCr * crore) / savingPerMakerYear;
+  return {
+    simUnitsMonthly: sim.unitsLast30,
+    simSkus: sim.liveSkus,
+    perSkuSim,
+    perSkuMature,
+    perSkuGap: perSkuSim === 0 ? 0 : perSkuMature / perSkuSim,
+    skusMature: skus,
+    matureMonthly,
+    matureYearly,
+    savingPerOrder: savingPerOrder_,
+    savingPerMakerYear,
+    makersForDeck,
+    deckCr,
+    atScaleTargetCr: (C.MAKERS_SCALE_TARGET.value * savingPerMakerYear) / crore,
+  };
+}
+
+/** Category managers a cohort needs: expected KAM cases ÷ cases one manager handles (at least one). */
+export const categoryManagersNeeded = (makers: number, escalationRate = C.KAM_ESCALATION_RATE.value, casesPerManager = C.KAM_CASES_PER_MANAGER.value) =>
+  Math.max(1, Math.ceil((makers * escalationRate) / casesPerManager));
+
+/** Makers per category manager = makers ÷ managers needed. */
+export const makersPerManager = (makers: number) => makers / categoryManagersNeeded(makers);
+
+/** Days of cover = stock ÷ daily run-rate (null when nothing is selling). */
+export const daysOfCover = (stock: number, perDay: number) => (perDay <= 0 ? null : stock / perDay);
+
+/** Annualised = a 30-day figure × 12. */
+export const annualise = (last30Days: number) => last30Days * 12;
+
 // ───────────────────────── Pack Point ─────────────────────────
 
 export interface PackPointCost {
@@ -567,7 +626,7 @@ export const FORMULA_INFO = {
   priceBand: { label: 'Price band', expression: 'break-even ≤ price ≤ B' },
   breakEven: { label: 'Break-even price', expression: '(making + packaging + shipping & fee + returns buffer) × (1 + GST)' },
   listPrice: { label: 'List price', expression: '(cost stack + margin) × (1 + GST)' },
-  takeHome: { label: 'Take-home per unit', expression: 'price − GST inside price − cost stack' },
+  takeHome: { label: 'Take-home / earned', expression: 'per unit: price − GST inside price − cost stack; cumulative: recognised when a delivered order is kept, net of returns and write-offs' },
   openGap: { label: 'Open gap', expression: 'unserved demand − committed supply' },
   likelyShare: { label: 'Likely share', expression: 'median of (first-28-day orders ÷ open gap at launch), adjusted; range p25–p75' },
   expectedDaily: { label: 'Expected daily orders per SKU', expression: 'open gap ÷ 7 × likely share' },
@@ -592,6 +651,10 @@ export const FORMULA_INFO = {
   forecastAttainment: { label: 'Forecast attainment', expression: 'actual orders ÷ forecast orders' },
   sellThrough: { label: 'Sell-through', expression: 'units sold ÷ units stocked' },
   orderPayout: { label: 'Payout per kept order', expression: 'price − shipping & fixed fee, TCS 0.5% and TDS 0.1% withheld as credits; paid 7 days after delivery' },
+  annualise: { label: 'Annualised revenue', expression: 'order value in the last 30 days × 12' },
+  daysOfCover: { label: 'Days of cover', expression: 'stock on hand ÷ orders per day (last 7 days)' },
+  takeHomeAccrued: { label: 'Earned (accrued)', expression: 'Σ kept orders × (price − GST − shipping & fee − making − packing or Pack Point fee) − return fees − write-offs − storage; recognised at delivery' },
+  makersPerManager: { label: 'Makers per category manager', expression: 'makers ÷ ⌈makers × KAM escalation rate ÷ KAM cases per manager per quarter⌉' },
   c2m: {
     label: 'C2M price contribution',
     expression: 'makers onboarded × share active at day 30 × orders per maker × price drop per order × share retained at day 90',

@@ -110,7 +110,7 @@ const slippers: SkuSpec = {
   conversionPct: 5,
   returnRatePct: 28,
   returnMix: { product: 0.15, expectation: 0.2, size: 0.55, swap: 0.1 },
-  typeReturnP75Pct: 32,
+  typeReturnP75Pct: 25,
   returnFee: 40,
   codSharePct: C.COD_SHARE_PCT.value,
   codFailPct: codFail,

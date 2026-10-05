@@ -8,15 +8,16 @@ import { hi } from '../i18n/hi';
 export const useMakerStrings = (): MakerStrings => (useApp((s) => s.lang) === 'hi' ? hi : en);
 
 /** The maker's phone (supplier app), with a Hindi/English toggle. Orange = maker action. */
-export function MakerPhone({ children, scale }: { children: (t: MakerStrings) => ReactNode; scale?: number }) {
+export function MakerPhone({ children, scale, fitViewport }: { children: (t: MakerStrings) => ReactNode; scale?: number; fitViewport?: boolean }) {
   const t = useMakerStrings();
   const toggleLang = useApp((s) => s.toggleLang);
   return (
     <PhoneFrame
       scale={scale}
+      fitViewport={fitViewport}
       label="Maker phone"
       header={
-        <div className="flex items-center justify-between bg-plum px-5 py-3 text-white">
+        <div className="flex items-center justify-between bg-plum px-4 py-2 text-white">
           <span className="text-lg font-semibold">{t.appName}</span>
           <button
             type="button"
@@ -31,7 +32,7 @@ export function MakerPhone({ children, scale }: { children: (t: MakerStrings) =>
         </div>
       }
     >
-      <div className="space-y-4 p-5 text-base">{children(t)}</div>
+      <div className="space-y-3 p-3 text-sm">{children(t)}</div>
     </PhoneFrame>
   );
 }

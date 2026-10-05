@@ -83,12 +83,13 @@ function BranchPanel({ p }: { p: PersonaSpec }) {
           </div>
         </div>
         <p className="mt-2 text-sm">
-          Inherits a seller-level quality score of <strong>{pctText((p.sellerQualityScore ?? 0) * 100)} 1–2★</strong>, so new listings don’t start from zero.
+          Her old seller score (<strong>{pctText((p.sellerQualityScore ?? 0) * 100)} 1–2★</strong>) stops dragging new listings: launch ratings are down-weighted and each listing builds a fresh listing-level score.
           Self-ships at {inr(price)} (below the {inr(C.PACK_POINT_MIN_PRICE.value)} Pack Point threshold).
         </p>
         <div className="mt-2 flex flex-wrap gap-1">
           <Chip kind="new">New: win-back diagnosis</Chip>
-          <Chip kind="existing">Existing Meesho: seller quality score</Chip>
+          <Chip kind="new">New: launch-rating down-weighting</Chip>
+          <Chip kind="existing">Existing Meesho: listing quality score</Chip>
         </div>
       </DashedPanel>
     );

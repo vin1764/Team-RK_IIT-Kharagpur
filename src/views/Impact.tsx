@@ -4,7 +4,7 @@ import { C } from '../data/constants';
 import { C2M_TERMS } from '../data/copy';
 import { PERSONA_SPECS } from '../data/personas';
 import { cohortMetrics } from '../data/generate/cohort';
-import { c2mContribution, priceDropDelivered } from '../engine/formulas';
+import { c2mContribution, priceDropDelivered, scaleBridge } from '../engine/formulas';
 import { MetricTile } from '../components/MetricTile';
 import { Num } from '../components/FormulaPopover';
 import { Chip } from '../components/Chip';
@@ -37,6 +37,9 @@ export default function Impact() {
     priceDrop: inr(terms.priceDrop, 1),
     retained90: pctText(cohort.activeD90Pct),
   };
+  const heroLast30 = hero.days.slice(-C.DAYS_PER_MONTH.value).reduce((a, d) => a + d.orders, 0);
+  const heroLive = hero.days[hero.days.length - 1]!.skus.filter((s) => s.live && !s.stopped).length;
+  const bridge = scaleBridge({ unitsLast30: heroLast30, liveSkus: heroLive });
   const ramp = C.MAKER_RAMP_YEAR_ONE.value;
   const yearOne = ramp[ramp.length - 1]!;
   return (
@@ -54,8 +57,8 @@ export default function Impact() {
             <div className="font-display text-lg font-bold text-plum">{p.name}</div>
             <div className="mb-2 text-xs text-grey">{p.cohort} · Launch {p.launchNo}</div>
             <div className="grid grid-cols-2 gap-2">
-              <MetricTile label="Orders" value={num(r.kpis.totalOrders)} target={`today: ${num(cf.kpis.totalOrders)}`} status="good" />
-              <MetricTile label="Take-home" value={<Num f="takeHome">{inr(r.kpis.takeHome)}</Num>} target={`today: ${inr(cf.kpis.takeHome)}`} status={r.kpis.takeHome > cf.kpis.takeHome ? 'good' : 'warn'} />
+              <MetricTile label="Orders" value={num(r.kpis.totalOrders)} caption={`today’s Meesho: ${num(cf.kpis.totalOrders)}`} status="good" />
+              <MetricTile label="Earned (accrued)" value={<Num f="takeHome">{inr(r.kpis.takeHome)}</Num>} caption={`today’s Meesho: ${inr(cf.kpis.takeHome)}`} status={r.kpis.takeHome > cf.kpis.takeHome ? 'good' : 'warn'} />
               <MetricTile label="Price vs B at launch" value={<Num f="priceDropDelivered">{pctText(r.kpis.priceDropAtLaunchPct, 1)}</Num>} target={`cohort ≥ ${C.PRICE_DROP_TARGET_PCT_OF_B.value}%`} status={r.kpis.priceDropAtLaunchPct >= C.PRICE_DROP_TARGET_PCT_OF_B.value ? 'good' : 'warn'} />
               <MetricTile label="Gates 1 · 2 · 3" value={<span className="text-lg">{`${r.gates.g1?.decision} · ${r.gates.g2?.decision} · ${r.gates.g3?.decision}`}</span>} />
             </div>
@@ -93,6 +96,52 @@ export default function Impact() {
         <p className="mt-2 text-xs text-grey">
           Orders per maker = average delivered-and-kept orders of the three simulated makers. Price drop per order = Σ(B − price) × orders ÷ Σ orders across them. Shares from the
           cohort at day 30 and day 90.
+        </p>
+      </div>
+
+      <TitleTab size="sm" className="mb-3">
+        From one maker to the deck’s {inr(bridge.deckCr)} Cr
+      </TitleTab>
+      <div className="mb-8 rounded-2xl border-2 border-dashed border-plum/50 bg-white p-4" data-testid="scale-bridge">
+        <ol className="grid gap-2 md:grid-cols-5">
+          {[
+            {
+              h: '1 · Simulated today',
+              v: `${num(bridge.simUnitsMonthly)} units/month`,
+              s: `Hiren at day 90 (month 3), ${bridge.simSkus} live SKUs → ${num(bridge.perSkuSim)} units/SKU/month`,
+            },
+            {
+              h: '2 · SKU expansion',
+              v: `${bridge.skusMature.min}–${bridge.skusMature.max} SKUs`,
+              s: `Make to demand keeps adding open-gap types on the same steel (he went 2 → ${bridge.simSkus + 1} listings in 90 days)`,
+            },
+            {
+              h: '3 · Mature run-rate',
+              v: `${num(bridge.matureMonthly)} units/month`,
+              s: `${num(bridge.matureYearly)} a year; ${num(bridge.perSkuMature)} units/SKU/month (${num(bridge.perSkuGap, 1)}× today’s per-SKU rate, as reviews and boost build)`,
+            },
+            {
+              h: '4 · × makers',
+              v: `${num(bridge.makersForDeck)} makers`,
+              s: `≈ the ${num(C.MAKERS_SCALE_TARGET.value)} scale target (not year one; year one ends at ${num(yearOne)})`,
+            },
+            {
+              h: '5 · × saving per order',
+              v: `${inr(bridge.savingPerOrder)} × orders`,
+              s: `${num(bridge.matureYearly)} × ${num(bridge.makersForDeck)} × ${inr(bridge.savingPerOrder)} = ${inr(bridge.deckCr)} Cr a year; at ${num(C.MAKERS_SCALE_TARGET.value)} makers ${inr(bridge.atScaleTargetCr)} Cr`,
+            },
+          ].map((x) => (
+            <li key={x.h} className="rounded-xl bg-blush p-3">
+              <div className="text-xs font-semibold text-magenta">{x.h}</div>
+              <div className="font-display text-xl font-bold text-plum">{x.v}</div>
+              <div className="mt-1 text-xs text-ink">{x.s}</div>
+            </li>
+          ))}
+        </ol>
+        <p className="mt-2 text-xs text-grey">
+          Assumptions: a mature maker sells ~{num(bridge.matureMonthly)} units a month across {bridge.skusMature.min}–{bridge.skusMature.max} SKUs (deck); every order saves the buyer{' '}
+          {inr(bridge.savingPerOrder)} (the self-ship saving on a {inr(C.AOV.value)} order); makers are added linearly. The simulated maker is only in months 1–3 with 2–3 SKUs, so steps
+          2–3 are the plan, not the simulation. A forecast, not a guarantee.
         </p>
       </div>
 

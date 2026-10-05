@@ -11,10 +11,10 @@ export function BandBar({ breakEven, B, price, big = false }: { breakEven: numbe
     <div className={big ? 'py-6' : 'py-4'}>
       <div className={`relative ${big ? 'h-4' : 'h-3'} rounded-full bg-blush`}>
         <div className="absolute inset-y-0 rounded-full bg-good/30" style={{ left: pos(breakEven), width: `calc(${pos(B)} - ${pos(breakEven)})` }} />
-        <div className="absolute -top-5 -translate-x-1/2 whitespace-nowrap text-[0.7em] font-semibold text-grey" style={{ left: pos(breakEven) }}>
+        <div className="absolute -top-5 -translate-x-1/2 whitespace-nowrap text-[11px] font-semibold text-grey" style={{ left: pos(breakEven) }}>
           Break-even {inr(breakEven)}
         </div>
-        <div className="absolute -top-5 -translate-x-1/2 whitespace-nowrap text-[0.7em] font-semibold text-plum" style={{ left: pos(B) }}>
+        <div className="absolute -top-5 -translate-x-1/2 whitespace-nowrap text-[11px] font-semibold text-plum" style={{ left: pos(B) }}>
           B {inr(B)}
         </div>
         <div
@@ -22,7 +22,7 @@ export function BandBar({ breakEven, B, price, big = false }: { breakEven: numbe
           style={{ left: pos(price) }}
           aria-label={`Price ${inr(price)}`}
         />
-        <div className={`absolute top-5 -translate-x-1/2 whitespace-nowrap text-[0.8em] font-bold ${inBand ? 'text-good' : 'text-bad'}`} style={{ left: pos(price) }}>
+        <div className={`absolute top-5 -translate-x-1/2 whitespace-nowrap text-xs font-bold ${inBand ? 'text-good' : 'text-bad'}`} style={{ left: pos(price) }}>
           {inr(price)}
         </div>
       </div>

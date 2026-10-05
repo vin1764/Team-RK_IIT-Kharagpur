@@ -9,7 +9,7 @@ type Metric = 'orders' | 'takeHome' | 'stock';
 
 const METRICS: { id: Metric; label: string; fmt: (n: number) => string }[] = [
   { id: 'orders', label: 'Cumulative orders', fmt: (n) => num(n) },
-  { id: 'takeHome', label: 'Take-home', fmt: (n) => inr(n) },
+  { id: 'takeHome', label: 'Earned (accrued)', fmt: (n) => inr(n) },
   { id: 'stock', label: 'Stock left', fmt: (n) => `${num(n)} units` },
 ];
 

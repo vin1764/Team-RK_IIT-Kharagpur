@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { useApp } from './store';
 import { TOUR } from './tour';
 
-/** Fixed caption bar while the judge tour runs. ← → move; Esc or ✕ exits. */
+/** Caption bar inside the sticky header while the judge tour runs (never covers the page). ← → move; Esc or ✕ exits. */
 export function TourBar() {
   const step = useApp((s) => s.tourStep);
   const setStep = useApp((s) => s.setTourStep);
@@ -37,8 +37,8 @@ export function TourBar() {
   if (step === null) return null;
   const s = TOUR[step]!;
   return (
-    <div className="fixed inset-x-0 bottom-0 z-50 border-t-4 border-orange bg-plum-deep text-white shadow-2xl" role="region" aria-label="Judge tour" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
-      <div className="mx-auto flex max-w-[1800px] items-center gap-3 px-4 py-2">
+    <div className="border-b-4 border-orange bg-plum-deep text-white shadow-lg" role="region" aria-label="Judge tour">
+      <div className="mx-auto flex max-w-[1800px] items-center gap-3 px-4 py-1.5">
         <button type="button" onClick={() => setStep(Math.max(0, step - 1))} disabled={step === 0} aria-label="Previous tour step" className="rounded-full bg-white/15 p-2 disabled:opacity-30">
           <ChevronLeft size={18} />
         </button>

@@ -25,6 +25,7 @@ import {
   firstCoachDay,
   firstLot,
   gradeShareB,
+  roundDownTo,
   firstRestockCheckDay,
   forecastAttainment,
   gstInsidePrice,
@@ -177,6 +178,9 @@ export interface DayState {
     takeHomeCum: number;
     cashInStock: number;
     makingPaidCum: number;
+    /** Cash in (payouts, recovered stock, claims) − cash out (stock made, packing, fees, GST remitted). Can be negative. */
+    netCashCum: number;
+    cashOutCum: number;
   };
   ledger: { unservedWeek: number; committedWeek: number; openGapWeek: number; crowded: boolean };
   nodeMakers: number;
@@ -228,6 +232,8 @@ export interface Kpis {
 
 export interface Gates {
   g1?: Gate1Result;
+  /** Day-30 rule re-applied after a Tighten (next Launch Week). */
+  g1rerun?: Gate1Result;
   g2?: Gate2Result;
   g3?: Gate3Result & { cohort: ReturnType<typeof cohortMetrics> };
 }
@@ -623,6 +629,8 @@ function run(base: PersonaSpec, options: SimOptions): SimResult {
   let creditsCum = 0;
   let takeHomeCum = 0;
   let makingPaidCum = 0;
+  let cashOutCum = 0;
+  let cashInExtraCum = 0;
   let buyerSavedCum = 0;
   let buyerVsResellerCum = 0;
   let meeshoContributionCum = 0;
@@ -638,6 +646,8 @@ function run(base: PersonaSpec, options: SimOptions): SimResult {
   const priceDropRows: { B: number; price: number; orders: number }[] = [];
   const days: DayState[] = [];
   const gates: Gates = {};
+  /** First live day of the rerun Launch Week after a Gate 1 Tighten. */
+  let rerunFrom: number | null = null;
   let cohort: CohortMaker[] = [];
 
   const coachStart = firstCoachDay();
@@ -668,7 +678,7 @@ function run(base: PersonaSpec, options: SimOptions): SimResult {
         day: ch[0]!,
         kind: 'winBack',
         actor: 'system',
-        text: `Win-back diagnosis of the old listing: ${w.views.toLocaleString('en-IN')} views → ${w.clicks} clicks; likely reason: ${w.likelyReason.toLowerCase()}. Refusal rate ${w.refusalPct}% vs category ${w.categoryRefusalPct}%. Inherits seller-level quality score ${Math.round((spec.sellerQualityScore ?? 0) * 100)}% 1–2★.`,
+        text: `Win-back diagnosis of the old listing: ${w.views.toLocaleString('en-IN')} views → ${w.clicks} clicks; likely reason: ${w.likelyReason.toLowerCase()}. Refusal rate ${w.refusalPct}% vs category ${w.categoryRefusalPct}%. Old seller score (${Math.round((spec.sellerQualityScore ?? 0) * 100)}% 1–2★) stops dragging new listings: launch ratings are down-weighted and each listing builds a fresh listing-level score.`,
       });
     }
     if (crowded) {
@@ -748,7 +758,11 @@ function run(base: PersonaSpec, options: SimOptions): SimResult {
   for (let d = timeline.min; d <= untilDay; d++) {
     const nodeMakers = nodeMakersAt(d);
     const fee = packPointFeeFor(nodeMakers);
+    /** Accrual: margin is recognised when an order is delivered and kept; its costs with it. */
     let takeHomeToday = 0;
+    /** Cash: what actually leaves the maker's account today (stock is counted at arrival). */
+    let cashOutToday = 0;
+    let cashInExtraToday = 0;
     let payoutToday = 0;
 
     if (spec.node && !cf && flags.nodeMakers === undefined && d === spec.node.crossDay) {
@@ -844,7 +858,11 @@ function run(base: PersonaSpec, options: SimOptions): SimResult {
         }
       }
       s.inbound = s.inbound.filter((x) => x.day !== d);
-      for (const r of s.rtoBack.filter((x) => x.day === d)) addLot(s, d, r.v, s.productFixApplied || !hasTarnish(sp));
+      for (const r of s.rtoBack.filter((x) => x.day === d)) {
+        addLot(s, d, r.v, s.productFixApplied || !hasTarnish(sp));
+        // The packing on a refused parcel is lost (no shipping charge when dispatched on time).
+        if (sp.fulfilment === 'selfShip') takeHomeToday -= r.v * sp.stack.packaging;
+      }
       s.rtoBack = s.rtoBack.filter((x) => x.day !== d);
       const grades = { A: 0, B: 0, C: 0 };
       for (const r of s.returnsBack.filter((x) => x.day === d)) {
@@ -854,6 +872,7 @@ function run(base: PersonaSpec, options: SimOptions): SimResult {
           grades.B += b;
           grades.A += r.v.n - b;
           takeHomeToday -= b * C.PP_REPACK_COST.value;
+          cashOutToday += b * C.PP_REPACK_COST.value;
           addLot(s, d, r.v.n, s.productFixApplied || !hasTarnish(sp));
         } else if (r.v.reason === 'product') {
           grades.C += r.v.n;
@@ -863,6 +882,7 @@ function run(base: PersonaSpec, options: SimOptions): SimResult {
           // Self-ship swap: the item that came back isn't ours; a claim recovers about half.
           const recovered = r.v.n * makeCost * C.CLAIM_RECOVERY_SHARE.value;
           takeHomeToday -= r.v.n * makeCost - recovered;
+          cashInExtraToday += recovered;
         }
       }
       s.returnsBack = s.returnsBack.filter((x) => x.day !== d);
@@ -874,14 +894,16 @@ function run(base: PersonaSpec, options: SimOptions): SimResult {
         const po = orderPayout(p.v.price, sp.stack.shippingAndFee, sp.gstRatePct);
         payoutToday += p.v.n * po.netPaid;
         creditsCum += p.v.n * (po.tcs + po.tds);
-        takeHomeToday += p.v.n * (p.v.price - gstInsidePrice(p.v.price, sp.gstRatePct) - sp.stack.shippingAndFee - makeCost);
+        // GST collected inside the price is remitted by the maker (cash, not earnings).
+        cashOutToday += p.v.n * gstInsidePrice(p.v.price, sp.gstRatePct);
       }
       s.payouts = s.payouts.filter((x) => x.day !== d);
 
       // Return requests (fee charged unless the Pack Point caught a swap).
       for (const r of s.returnRequests.filter((x) => x.day === d)) {
         if (r.v.rejected) continue;
-        takeHomeToday -= sp.returnFee;
+        takeHomeToday -= sp.returnFee + (sp.fulfilment === 'selfShip' ? sp.stack.packaging : 0);
+        cashOutToday += sp.returnFee;
         s.returnsBack.push({ day: d + C.SIM_RETURN_TRANSIT_DAYS.value, v: { reason: r.v.reason, n: 1 } });
       }
       s.returnRequests = s.returnRequests.filter((x) => x.day !== d);
@@ -893,7 +915,10 @@ function run(base: PersonaSpec, options: SimOptions): SimResult {
       for (const dl of s.deliveries.filter((x) => x.day === d)) {
         const D = dl.v.count;
         deliveredToday += D;
-        if (sp.fulfilment === 'packPoint') takeHomeToday -= D * fee;
+        if (sp.fulfilment === 'packPoint') {
+          takeHomeToday -= D * fee;
+          cashOutToday += D * fee;
+        }
         const rates = returnRates(s, dl.v.unfixedShare);
         let returned = 0;
         let swapsCaught = 0;
@@ -919,6 +944,7 @@ function run(base: PersonaSpec, options: SimOptions): SimResult {
         }
         const kept = D - returned;
         keptToday += kept;
+        takeHomeToday += kept * (dl.v.price - gstInsidePrice(dl.v.price, sp.gstRatePct) - sp.stack.shippingAndFee - makeCost - (sp.fulfilment === 'selfShip' ? sp.stack.packaging : 0));
         s.payouts.push({ day: d + C.PAYMENT_CYCLE_DAYS.value, v: { n: kept, price: dl.v.price } });
         buyerSavedCum += kept * (dl.v.B - dl.v.price);
         buyerVsResellerCum += kept * (sp.resellerPrice - dl.v.price);
@@ -950,7 +976,8 @@ function run(base: PersonaSpec, options: SimOptions): SimResult {
           other: shift * s.visibility * flags.demandFactor,
         };
         const mult = s.launchEligible && !s.launchSlotRemoved ? flags.launchMultiplier : 1;
-        const eL = expectedDailyDemand({ ...common, launch: launchMultiplier(d, true, mult) }) * launchWeight;
+        const inRerun = s.primary && rerunFrom !== null && d >= rerunFrom && d <= rerunFrom + (live.max - live.min);
+        const eL = expectedDailyDemand({ ...common, launch: inRerun ? mult : launchMultiplier(d, true, mult) }) * launchWeight;
         const eC = expectedDailyDemand({ ...common, launch: 1 }) * controlWeight;
         demand = carry(s, 'demand').take((eL + eC) * noiseFor(s, d));
         orders = Math.min(demand, onHandStart);
@@ -968,7 +995,7 @@ function run(base: PersonaSpec, options: SimOptions): SimResult {
         );
         rtosAvoided += orders * (s.initialRtoProb - rtoP);
         const unfixedShare = takeFifo(s, orders, d);
-        if (sp.fulfilment === 'selfShip') takeHomeToday -= orders * sp.stack.packaging;
+        if (sp.fulfilment === 'selfShip') cashOutToday += orders * sp.stack.packaging;
         if (rtoCount > 0) s.rtoBack.push({ day: d + C.SIM_RTO_RETURN_DAYS.value, v: rtoCount });
         if (orders - rtoCount > 0) {
           s.deliveries.push({ day: d + C.SIM_DELIVERY_DAYS.value, v: { count: orders - rtoCount, unfixedShare, price: s.price, B } });
@@ -1001,7 +1028,12 @@ function run(base: PersonaSpec, options: SimOptions): SimResult {
 
       // Storage at the Pack Point (free 30 days).
       if (sp.fulfilment === 'packPoint') {
-        for (const lot of s.lots) if (d - lot.arrival >= C.PP_STORAGE_FREE_DAYS.value) takeHomeToday -= storageCost(lot.units, C.PP_STORAGE_FREE_DAYS.value + 1);
+        for (const lot of s.lots)
+          if (d - lot.arrival >= C.PP_STORAGE_FREE_DAYS.value) {
+            const sc = storageCost(lot.units, C.PP_STORAGE_FREE_DAYS.value + 1);
+            takeHomeToday -= sc;
+            cashOutToday += sc;
+          }
       }
 
       const ctr = s.ctrPct;
@@ -1070,7 +1102,24 @@ function run(base: PersonaSpec, options: SimOptions): SimResult {
           const rr = runRate(last7, trendFactor(postLaunch.map((x) => x.demand)));
           const rop = reorderPoint(rr, sp.leadTimeDays, sp.safetyDays);
           const gapCap = Math.round(openGapMid(sp) * 3);
-          const batch = nextBatch(rr, sp.minRun, gapCap);
+          let batch = nextBatch(rr, sp.minRun, gapCap);
+          // Ahead of Gate 3 (scale or stop), don't bet new stock: land at most N days of cover on the decision day.
+          const gate3Day = C.GATE_DAYS.value[2]!;
+          const arrival = d + sp.leadTimeDays;
+          const maxCover = C.GATE3_MAX_COVER_DAYS.value;
+          let cappedForGate3 = false;
+          if (arrival <= gate3Day && gate3Day - arrival < maxCover) {
+            // Projected stock on Gate 3 day = on hand − sales until then + RTO/returns coming back + this batch.
+            const incoming =
+              s.rtoBack.filter((x) => x.day <= gate3Day).reduce((a, x) => a + x.v, 0) +
+              s.returnsBack.filter((x) => x.day <= gate3Day && (x.v.reason === 'expectation' || x.v.reason === 'size')).reduce((a, x) => a + x.v.n, 0);
+            const projectedWithout = Math.max(0, today.onHand - rr * (gate3Day - d)) + incoming;
+            const cap = roundDownTo(rr * (maxCover - sp.safetyDays) - projectedWithout, C.LOT_ROUNDING_UNITS.value);
+            if (cap < batch) {
+              batch = Math.max(sp.minRun, cap);
+              cappedForGate3 = true;
+            }
+          }
           const orderNow = rr > 0 && today.onHand <= rop + rr;
           if (d === restockStart && rr > 0) {
             // The first check is a dated plan: when to start the next batch and how big it is.
@@ -1094,7 +1143,7 @@ function run(base: PersonaSpec, options: SimOptions): SimResult {
                 kind: 'restockPrompt',
                 actor: 'system',
                 skuId: sp.id,
-                text: `Restock (“${sp.name}”): ${today.onHand} on hand hits the reorder point ${rop} (${fmt1(rr)}/day) → batch of ${batch} started, ready day ${d + sp.leadTimeDays}.`,
+                text: `Restock (“${sp.name}”): ${today.onHand} on hand hits the reorder point ${rop} (${fmt1(rr)}/day) → batch of ${batch} started, ready day ${d + sp.leadTimeDays}${cappedForGate3 ? ` (capped: ≤ ${maxCover} days of cover at Gate 3)` : ''}.`,
                 data: { runRate: rr, onHand: today.onHand, reorderPoint: rop, batch, startDay: d },
               });
             }
@@ -1125,7 +1174,7 @@ function run(base: PersonaSpec, options: SimOptions): SimResult {
 
         // Weekly coach: one cause → one fix → one nudge → one tap.
         if (d >= coachStart && (d - coachStart) % 7 === 0 && !s.activeFix) {
-          const order: Trigger[] = ['weakListing', 'productFix', 'listingFix', 'refusals'];
+          const order: Trigger[] = ['weakListing', 'listingFix', 'productFix', 'refusals'];
           const t = order.find((x) => triggerFires(s, x));
           if (t) issueFix(s, d, t, 1);
         }
@@ -1135,7 +1184,7 @@ function run(base: PersonaSpec, options: SimOptions): SimResult {
           const w = h.slice(-C.NAD_WATCH_DAYS.value);
           const delivered = w.reduce((a, x) => a + x.delivered, 0);
           const nad = w.reduce((a, x) => a + x.returnsByReason.product, 0);
-          const norm = (sp.returnRatePct * sp.returnMix.product) / 100;
+          const norm = (sp.nadNormPct ?? sp.returnRatePct * sp.returnMix.product) / 100;
           if (delivered >= C.NAD_MIN_DELIVERIES.value && nadBreached(rate(nad, delivered), norm)) {
             s.nadFlagged = true;
             s.visibility = Math.min(s.visibility, C.SIM_VISIBILITY_CUT.value);
@@ -1153,34 +1202,24 @@ function run(base: PersonaSpec, options: SimOptions): SimResult {
           const bar = C.SLOW_SELLER_SHARE.value * sp.establishedMedianPerDay;
           if (w.every((x) => x.inStockAtStart && x.demand < bar)) {
             s.stopped = true;
+            // Leftover stock goes back to the maker's existing distributor channel at ex-works (cash recovered at cost).
+            const left = unitsOnHand(s);
+            s.lots = [];
+            cashInExtraToday += left * sp.stack.makingCost;
             emit({
               day: d,
               kind: 'slowSeller',
               actor: 'system',
               skuId: sp.id,
-              text: `Slow seller: “${sp.name}” under ${fmt1(bar)} orders/day for ${nSlow} days while the type is steady → stop. ${unitsOnHand(s)} units left.`,
+              text: `Slow seller: “${sp.name}” under ${fmt1(bar)} orders/day for ${nSlow} days while the type is steady → stop. ${left} units left go to his distributor channel at ex-works (${inr(left * sp.stack.makingCost)} recovered at cost).`,
+              data: { unitsMoved: left },
             });
-            const option = spec.switchOptions.find((o) => !skus.some((x) => x.spec.id === o.id));
-            if (option) {
-              const liveDay = d + Math.max(option.leadTimeDays, Math.ceil(C.CATALOGUE_GO_LIVE_HOURS.value / 24));
-              const ns = mkState({ ...option, liveFromDay: liveDay }, false);
-              const usePP = option.fulfilment === 'packPoint' && nodeMakersAt(d) >= nodeRef;
-              if (option.fulfilment === 'packPoint' && !usePP) {
-                ns.spec = { ...ns.spec, fulfilment: 'selfShip', stack: { ...ns.spec.stack, packaging: C.SELF_SHIP_OWN_COST.value } };
-              }
-              ns.inbound.push({ day: liveDay, v: { units: ns.launchLot, fixed: true, launch: true } });
-              skus.push(ns);
-              committedWeek += committedPerWeekFromLot(ns.launchLot);
-              emit({
-                day: d,
-                kind: 'switch',
-                actor: 'system',
-                skuId: option.id,
-                text: `Make to demand: switch to “${option.productType}” (${Math.round(openGapMid(option))}/week unserved, same steel and process). Second listing built in 2 minutes; first lot ${ns.launchLot} units${usePP ? ' via the Pack Point' : ', self-ship (node not paying yet)'}; live day ${liveDay}.`,
-              });
-            }
+            addSwitch(d, 'switch');
           }
         }
+
+        // Make to demand: a switched-in SKU that sells for a week triggers the next open-gap suggestion.
+        if (!s.primary && s.spec.id === spec.switchOptions[0]?.id && d === s.liveFrom + C.EXPANSION_AFTER_DAYS.value && today.orders > 0) addSwitch(d, 'expand');
       }
 
       // Forecast attainment, 14 days after go-live.
@@ -1217,11 +1256,14 @@ function run(base: PersonaSpec, options: SimOptions): SimResult {
 
     // Gates.
     if (!cf && d === C.GATE_DAYS.value[0]) gates.g1 = computeGate1();
+    if (!cf && rerunFrom !== null && d === C.GATE_DAYS.value[0]! + C.LAUNCH_CADENCE_DAYS.value) gates.g1rerun = computeGate1Rerun(d);
     if (!cf && d === C.GATE_DAYS.value[1]) gates.g2 = computeGate2(d);
     if (!cf && d === C.GATE_DAYS.value[2]) gates.g3 = computeGate3();
 
     // Day state.
     takeHomeCum += takeHomeToday;
+    cashOutCum += cashOutToday;
+    cashInExtraCum += cashInExtraToday;
     payoutsCum += payoutToday;
     const skuDays = skus.map((s) => s.history[s.history.length - 1]!).filter(Boolean);
     days.push({
@@ -1240,6 +1282,8 @@ function run(base: PersonaSpec, options: SimOptions): SimResult {
         takeHomeCum,
         cashInStock: skus.reduce((a, s) => a + (unitsOnHand(s) + s.packLater) * s.spec.stack.makingCost, 0),
         makingPaidCum,
+        netCashCum: payoutsCum + cashInExtraCum - makingPaidCum - cashOutCum,
+        cashOutCum,
       },
       ledger: { unservedWeek, committedWeek, openGapWeek: unservedWeek - committedWeek, crowded: isCrowded(committedWeek, unservedWeek) },
       nodeMakers,
@@ -1252,6 +1296,30 @@ function run(base: PersonaSpec, options: SimOptions): SimResult {
   }
 
   // ───── helpers needing closure state ─────
+
+  /** Add the next open-gap product type on the same material and process (switch after a stop, or expand). */
+  function addSwitch(d: number, why: 'switch' | 'expand') {
+    const option = spec.switchOptions.find((o) => !skus.some((x) => x.spec.id === o.id));
+    if (!option) return;
+    const liveDay = d + Math.max(option.leadTimeDays, Math.ceil(C.CATALOGUE_GO_LIVE_HOURS.value / 24));
+    const ns = mkState({ ...option, liveFromDay: liveDay }, false);
+    const usePP = option.fulfilment === 'packPoint' && nodeMakersAt(d) >= nodeRef;
+    if (option.fulfilment === 'packPoint' && !usePP) {
+      ns.spec = { ...ns.spec, fulfilment: 'selfShip', stack: { ...ns.spec.stack, packaging: C.SELF_SHIP_OWN_COST.value } };
+    }
+    ns.inbound.push({ day: liveDay, v: { units: ns.launchLot, fixed: true, launch: true } });
+    skus.push(ns);
+    committedWeek += committedPerWeekFromLot(ns.launchLot);
+    const n = skus.length;
+    emit({
+      day: d,
+      kind: 'switch',
+      actor: 'system',
+      skuId: option.id,
+      text: `Make to demand: ${why === 'switch' ? 'switch to' : 'add'} “${option.productType}” (${Math.round(openGapMid(option))}/week unserved, same steel and process${why === 'expand' ? ', idle capacity available' : ''}). Listing ${n} built in 2 minutes; first lot ${ns.launchLot} units${usePP ? ' via the Pack Point' : ', self-ship (node not paying yet)'}; live day ${liveDay}.`,
+      data: { why },
+    });
+  }
 
   function issueFix(s: SkuState, d: number, t: Trigger, fixNo: number) {
     nudgesSent++;
@@ -1279,7 +1347,8 @@ function run(base: PersonaSpec, options: SimOptions): SimResult {
       const tarnish = sp.latent.find((l) => l.kind === 'tarnish');
       s.expectationFactor *= 1 - (tarnish && tarnish.kind === 'tarnish' ? tarnish.listingFixEffect : 0.5);
     } else if (t === 'productFix') {
-      s.productFixPending = true;
+      // The maker's own fix on the next batch; it can't reach a hidden process cause (e.g. plating).
+      if (!sp.latent.some((l) => l.kind === 'tarnish')) s.productFixPending = true;
     } else if (t === 'refusals') {
       const r = sp.latent.find((l) => l.kind === 'highRefusals');
       s.codSharePct = r && r.kind === 'highRefusals' ? r.nudgedCodSharePct : Math.max(0, s.codSharePct - 10);
@@ -1326,8 +1395,12 @@ function run(base: PersonaSpec, options: SimOptions): SimResult {
     if (returnsSuppressed(s)) return false;
     const delivered = sumBy(w, (x) => x.delivered);
     const returns = sumBy(w, (x) => x.returnRequests);
-    if (delivered < MIN_SAMPLE || 100 * rate(returns, delivered) <= sp.typeReturnP75Pct) return false;
     const product = sumBy(w, (x) => x.returnsByReason.product);
+    // A product-reason bar of its own (e.g. jewellery finish): fires even when total returns are in band.
+    if (t === 'productFix' && sp.typeProductReturnP75Pct !== undefined) {
+      return delivered >= MIN_SAMPLE && 100 * rate(product, delivered) > sp.typeProductReturnP75Pct;
+    }
+    if (delivered < MIN_SAMPLE || 100 * rate(returns, delivered) <= sp.typeReturnP75Pct) return false;
     const expectation = sumBy(w, (x) => x.returnsByReason.expectation + x.returnsByReason.size);
     return t === 'productFix' ? product > expectation : expectation >= product;
   }
@@ -1348,16 +1421,43 @@ function run(base: PersonaSpec, options: SimOptions): SimResult {
     const sellThroughPct = 100 * Math.min(1, prim.launchLot === 0 ? 0 : sold / prim.launchLot);
     const liveSkuDays = skus.flatMap((s) => s.history.filter((x) => x.live && x.day <= C.GATE_DAYS.value[0]!));
     const held = 100 * pricesHeldShare(liveSkuDays);
-    const g = gate1({ stickRate: stick, liftX, sellThroughPct, pricesHeldPct: held });
+    const returnsPct = returnRateOf(prim, live.min, C.GATE_DAYS.value[0]!);
+    const g = gate1({ stickRate: stick, liftX, sellThroughPct, pricesHeldPct: held, returnRatePct: returnsPct, returnBandPct: ps.typeReturnP75Pct });
     emit({ day: g.day, kind: 'gate', actor: 'meesho', text: `Gate 1 (day ${g.day}): ${g.decision}. ${g.reason}.`, data: { gate: 1, decision: g.decision } });
     if (g.decision !== 'Invest') {
       guardrails.push({
         day: g.day,
         guardrail: 'Day-30 rule (fixed in advance)',
-        what: `Stick ${fmt2(stick)}, lift ${fmt2(liftX)}× → ${g.decision}${g.decision === 'Tighten' ? ': adjust B or eligibility, rerun once' : ''}`,
+        what: `Stick ${fmt2(stick)}, lift ${fmt2(liftX)}×, returns ${fmt1(returnsPct)}% → ${g.decision}${g.decision === 'Tighten' ? ': fix, rerun once at the next Launch Week' : ''}`,
         cost: 'No further launch spend on this cohort until the rerun',
       });
+      if (g.decision === 'Tighten' && untilDay >= C.GATE_DAYS.value[0]! + C.LAUNCH_CADENCE_DAYS.value) rerunFrom = live.min + C.LAUNCH_CADENCE_DAYS.value;
     }
+    return g;
+  }
+
+  /** Return requests ÷ deliveries for one SKU over [from, to]. */
+  function returnRateOf(s: SkuState, from: number, to: number) {
+    const w = s.history.filter((x) => x.day >= from && x.day <= to);
+    return 100 * rate(sumBy(w, (x) => x.returnRequests), sumBy(w, (x) => x.delivered));
+  }
+
+  /** Gate 1 rerun: the day-30 rule re-applied after the next Launch Week (Tighten → fix, rerun once). */
+  function computeGate1Rerun(d: number) {
+    const lastFrom = live.min + C.LAUNCH_CADENCE_DAYS.value;
+    const lastTo = live.max + C.LAUNCH_CADENCE_DAYS.value;
+    const win = (from: number, to: number) => prim.history.filter((x) => x.day >= from && x.day <= to);
+    const stickW = win(stickWindow.min + C.LAUNCH_CADENCE_DAYS.value, stickWindow.max + C.LAUNCH_CADENCE_DAYS.value);
+    const stick = stickRate(sumBy(stickW, (x) => x.demand) / Math.max(1, stickW.length), ps.establishedMedianPerDay);
+    const liveW = win(lastFrom, lastTo);
+    const liftX = lift(sumBy(liveW, (x) => x.ordersLaunch) / launchWeight, sumBy(liveW, (x) => x.ordersControl) / controlWeight);
+    const startStock = prim.history.find((x) => x.day === lastFrom - 1)?.onHand ?? 0;
+    const sold = sumBy(win(lastFrom, d), (x) => x.orders - x.rto);
+    const sellThroughPct = 100 * Math.min(1, startStock === 0 ? 1 : sold / startStock);
+    const held = 100 * pricesHeldShare(skus.flatMap((s) => s.history.filter((x) => x.live && x.day > C.GATE_DAYS.value[0]! && x.day <= d)));
+    const returnsPct = returnRateOf(prim, d - C.FIX_RECHECK_DAYS.value, d);
+    const g = gate1({ stickRate: stick, liftX, sellThroughPct, pricesHeldPct: held, returnRatePct: returnsPct, returnBandPct: ps.typeReturnP75Pct }, d);
+    emit({ day: d, kind: 'gate', actor: 'meesho', text: `Gate 1 rerun (day ${d}, after the fix and the next Launch Week): ${g.decision}. ${g.reason}.`, data: { gate: 1, rerun: true, decision: g.decision } });
     return g;
   }
 
@@ -1513,8 +1613,8 @@ function returnRates(s: SkuState, unfixedShare: number): Record<ReturnReason, nu
   const tarnish = sp.latent.find((l) => l.kind === 'tarnish');
   const tarnishPct = tarnish && tarnish.kind === 'tarnish' ? tarnish.extraReturnPct * unfixedShare : 0;
   return {
-    product: base * sp.returnMix.product * s.productFactor + s.extraProductReturnPct,
-    expectation: base * sp.returnMix.expectation * s.expectationFactor + tarnishPct,
+    product: base * sp.returnMix.product * s.productFactor + s.extraProductReturnPct + tarnishPct,
+    expectation: base * sp.returnMix.expectation * s.expectationFactor,
     size: base * sp.returnMix.size,
     swap: base * sp.returnMix.swap,
   };

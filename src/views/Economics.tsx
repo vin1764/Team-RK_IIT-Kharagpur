@@ -86,9 +86,9 @@ function Waterfall() {
           </tbody>
         </table>
         <div className="space-y-2">
-          <MetricTile label="Buyer pays vs B" value={<Num f="priceDropDelivered">{`${inr(price)} vs ${inr(B)}`}</Num>} target={`${pctText((100 * (B - price)) / B, 1)} below today’s typical price`} status="good" />
-          <MetricTile label="vs the reseller price" value={`${inr(sku.resellerPrice - price)} saved`} target={`reseller sells at ${inr(sku.resellerPrice)}`} status="good" />
-          <MetricTile label="Maker take-home per unit" value={<Num f="takeHome">{inr(keep)}</Num>} target={`+ ${inr(sku.stack.returnsBuffer)} returns buffer`} />
+          <MetricTile label="Buyer pays vs B" value={<Num f="priceDropDelivered">{`${inr(price)} vs ${inr(B)}`}</Num>} caption={`${pctText((100 * (B - price)) / B, 1)} below today’s typical price`} status="good" />
+          <MetricTile label="vs the reseller price" value={`${inr(sku.resellerPrice - price)} saved`} caption={`reseller sells at ${inr(sku.resellerPrice)}`} status="good" />
+          <MetricTile label="Maker take-home per unit" value={<Num f="takeHome">{inr(keep)}</Num>} caption={`+ ${inr(sku.stack.returnsBuffer)} returns buffer`} />
         </div>
       </div>
       <p className="mt-2 text-[11px] text-grey">
@@ -116,10 +116,10 @@ function PartnerPnl() {
         <input type="range" min={10} max={90} value={makers} onChange={(e) => setMakers(Number(e.target.value))} className="w-full accent-plum" aria-label="Makers pooled (P&L)" />
       </label>
       <div className="grid gap-3 md:grid-cols-4">
-        <MetricTile label="Revenue / month" value={inr(p.revenue)} target={`${num(p.delivered)} delivered of ${num(p.handled)} handled`} />
-        <MetricTile label="Cost / month" value={inr(p.cost)} target={`${inr(cost.costPerOrder, 1)} per order handled`} />
-        <MetricTile label="Partner profit / month" value={<Num f="packPointPnl">{inr(p.profit)}</Num>} target={`margin ${pctText(p.marginPct, 1)}`} status={p.profit >= 0 ? 'good' : 'bad'} />
-        <MetricTile label="Break-even node" value={`${breakEven ?? '—'} makers`} target={`Shiprocket cross-check ${inr(C.PP_SHIPROCKET_BENCHMARK.value)}/order`} />
+        <MetricTile label="Revenue / month" value={inr(p.revenue)} caption={`${num(p.delivered)} delivered of ${num(p.handled)} handled`} />
+        <MetricTile label="Cost / month" value={inr(p.cost)} caption={`${inr(cost.costPerOrder, 1)} per order handled`} />
+        <MetricTile label="Partner profit / month" value={<Num f="packPointPnl">{inr(p.profit)}</Num>} caption={`margin ${pctText(p.marginPct, 1)}`} status={p.profit >= 0 ? 'good' : 'bad'} />
+        <MetricTile label="Break-even node" value={`${breakEven ?? '—'} makers`} caption={`Shiprocket cross-check ${inr(C.PP_SHIPROCKET_BENCHMARK.value)}/order`} />
       </div>
       <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
         <div className="h-60">
@@ -199,9 +199,9 @@ function CashView() {
         </ResponsiveContainer>
       </div>
       <div className="space-y-2">
-        <MetricTile label="First sale → first payout" value={firstSale !== undefined && firstPayout !== undefined ? `${firstPayout - firstSale} days` : '—'} target={`delivery ${C.SIM_DELIVERY_DAYS.value} days + ${C.PAYMENT_CYCLE_DAYS.value}-day payment cycle`} />
-        <MetricTile label="Payouts by day 90" value={inr(last.money.payoutsCum)} target={`stock made ${inr(last.money.makingPaidCum)}`} />
-        <MetricTile label="Tax credits to claim" value={inr(last.money.creditsCum)} target="TCS + TDS, claimable" />
+        <MetricTile label="First sale → first payout" value={firstSale !== undefined && firstPayout !== undefined ? `${firstPayout - firstSale} days` : '—'} caption={`delivery ${C.SIM_DELIVERY_DAYS.value} days + ${C.PAYMENT_CYCLE_DAYS.value}-day payment cycle`} />
+        <MetricTile label="Payouts by day 90" value={inr(last.money.payoutsCum)} caption={`stock made ${inr(last.money.makingPaidCum)}`} />
+        <MetricTile label="Tax credits to claim" value={inr(last.money.creditsCum)} caption="TCS + TDS, claimable" />
       </div>
     </div>
   );

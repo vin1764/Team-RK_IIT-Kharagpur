@@ -6,10 +6,10 @@ import { Num } from './FormulaPopover';
 export function OutcomeRows({ base, cf, compact = false }: { base: SimResult; cf: SimResult; compact?: boolean }) {
   const rows = [
     { label: 'Orders (90 days)', w: num(base.kpis.totalOrders), wo: num(cf.kpis.totalOrders) },
-    { label: 'Take-home', w: inr(base.kpis.takeHome), wo: inr(cf.kpis.takeHome), f: 'takeHome' as const },
+    { label: 'Earned (accrued)', w: inr(base.kpis.takeHome), wo: inr(cf.kpis.takeHome), f: 'takeHome' as const },
     { label: 'Stock left', w: `${num(base.kpis.unitsLeft)} selling`, wo: `${num(cf.kpis.unitsLeft)} unsold (${inr(cf.kpis.cashInStockEnd)})` },
     { label: 'Price vs B', w: `${pctText(base.kpis.priceDropAtLaunchPct, 1)} below`, wo: '—', f: 'priceDropDelivered' as const },
-    { label: 'Day-30 gate', w: base.gates.g1?.decision ?? '—', wo: 'Churns ~day 25' },
+    { label: 'Day-30 gate', w: base.gates.g1rerun ? `${base.gates.g1?.decision} → ${base.gates.g1rerun.decision} (rerun)` : base.gates.g1?.decision ?? '—', wo: 'Churns ~day 25' },
   ];
   return (
     <table className={`w-full text-left ${compact ? 'text-xs' : 'text-sm'}`}>

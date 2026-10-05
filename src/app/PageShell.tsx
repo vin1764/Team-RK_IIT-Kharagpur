@@ -20,6 +20,7 @@ export function PageShell({
   back,
   children,
   actions,
+  hideSummary = false,
 }: {
   def: PageDef;
   /** Overrides def.title (persona pages). */
@@ -30,6 +31,7 @@ export function PageShell({
   back?: { to: string; label: string };
   children: ReactNode;
   actions?: ReactNode;
+  hideSummary?: boolean;
 }) {
   const heading = title ?? def.title;
   const nextLink = next ?? { to: def.next, label: def.next === '/' ? 'Home' : titleOf(def.next) };
@@ -55,7 +57,7 @@ export function PageShell({
           {actions}
         </div>
       </div>
-      <p className="mb-6 max-w-3xl text-base text-grey">{def.summary}</p>
+      {!hideSummary && <p className="mb-6 max-w-3xl text-base text-grey">{def.summary}</p>}
 
       {children}
 

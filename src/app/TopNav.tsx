@@ -3,6 +3,7 @@ import { Eye, EyeOff, Settings, PlayCircle, RotateCcw } from 'lucide-react';
 import { Go } from './Go';
 import { NAV_PAGES } from './pages';
 import { useApp } from './store';
+import { TourBar } from './TourBar';
 
 function SettingsMenu() {
   const [open, setOpen] = useState(false);
@@ -108,6 +109,7 @@ export function TopNav() {
           })}
         </ul>
       </nav>
+      <TourBar />
     </header>
   );
 }

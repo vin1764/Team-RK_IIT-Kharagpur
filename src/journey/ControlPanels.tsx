@@ -7,11 +7,14 @@ import {
   committedPerWeekFromLot,
   expectedDailyPerSku,
   isCrowded,
-  lift,
   listPrice,
   nextBatch,
   packPointFeeTier,
   reorderPoint,
+  matchedPairs,
+  diffVsBaselinePct,
+  makersPerManager,
+  categoryManagersNeeded,
 } from '../engine/formulas';
 import { MAKER_SELLER_ID } from '../data/generate/bTable';
 import { Chip } from '../components/Chip';
@@ -58,12 +61,17 @@ export function ControlPanel() {
   }
 }
 
-const fmtInput = (i: GateInput) => (i.unit === '%' ? pctText(i.value, 1) : i.unit === '×' ? `${num(i.value, 2)}×` : num(i.value, 2));
+/** Lift is shown as a difference vs the matched-control baseline, not a raw ratio. */
+const fmtLift = (x: number) => `${x >= 1 ? '+' : '−'}${num(Math.abs(x - 1) * 100)}% vs baseline`;
+const fmtInput = (i: GateInput) => (i.unit === '%' ? pctText(i.value, 1) : i.unit === '×' ? fmtLift(i.value) : num(i.value, 2));
+const fmtTarget = (i: GateInput) => (i.unit === '×' ? `≥ +${num((i.target - 1) * 100)}%` : `${i.sense === 'min' ? '≥' : '≤'} ${i.target}${i.unit === '%' ? '%' : ''}`);
 
 export function DemandEngine() {
   const j = useJourney();
   const s = j.sku;
-  const table = j.r.bTables[`${s.id}#0`]!;
+  // The maker's own listing appears only once the listing bot has built it.
+  const listed = j.day >= C.CHAPTER_DAYS.value[4]!;
+  const table = j.r.bTables[`${s.id}#0`]!.filter((row) => listed || row.sellerId !== MAKER_SELLER_ID);
   const b = benchmarkB(table, { excludeSellerId: MAKER_SELLER_ID });
   const dMin = expectedDailyPerSku(s.openGapWeek.min, s.likelyShare);
   const dMax = expectedDailyPerSku(s.openGapWeek.max, s.likelyShare);
@@ -213,25 +221,28 @@ export function Ledger() {
   return (
     <div>
       <PanelTitle right={<Chip kind="new" />}>Committed-supply ledger</PanelTitle>
-      <p className="text-sm">Every commitment shrinks the gap every seller sees.</p>
+      <p className="text-sm">
+        Every commitment shrinks the gap every seller sees. One unit throughout: orders per week. {j.p.name.split(' ')[0]}’s {lot}-unit first lot covers about{' '}
+        {C.FIRST_LOT_DAYS.value} days, so it counts as {Math.round(after - before)} orders/week.
+      </p>
       <div className="mt-3 h-8 w-full overflow-hidden rounded-lg bg-blush">
         <div className="flex h-full">
           <div className="flex items-center justify-center bg-grey text-[11px] text-white" style={{ width: `${pctOf(before)}%` }}>
-            Already committed {Math.round(before)}
+            Already committed {Math.round(before)} orders/wk
           </div>
           <div className="flex items-center justify-center bg-orange text-[11px] font-semibold" style={{ width: `${pctOf(after - before)}%` }}>
-            +{Math.round(after - before)}
+            +{Math.round(after - before)}/wk
           </div>
         </div>
       </div>
       <div className="mt-1 flex justify-between text-[11px] text-grey">
         <span>0</span>
         <span>Crowded at {pctText(C.CROWDED_SHARE.value * 100)}</span>
-        <span>{Math.round(unserved)}/week unserved</span>
+        <span>{Math.round(unserved)} orders/week unserved</span>
       </div>
       <div className="mt-3 grid grid-cols-3 gap-2">
-        <MetricTile label="Open gap before" value={`${Math.round(unserved - before)}/wk`} />
-        <MetricTile label="Open gap after" value={`${Math.round(unserved - after)}/wk`} />
+        <MetricTile label="Open gap before (orders/week)" value={Math.round(unserved - before)} />
+        <MetricTile label="Open gap after (orders/week)" value={Math.round(unserved - after)} />
         <MetricTile label="Crowded?" value={isCrowded(after, unserved) ? 'Yes' : 'No'} status={isCrowded(after, unserved) ? 'bad' : 'good'} />
       </div>
       <p className="mt-2 text-xs text-grey">
@@ -333,36 +344,47 @@ export function Districts() {
   const j = useJourney();
   const live = C.LAUNCH_LIVE_DAYS.value;
   const to = Math.min(j.day, live.max);
-  const data = j.r.districts.map((d, i) => ({
-    name: d.name,
-    launch: d.launch ? j.sumSku((s) => s.byDistrict[i] ?? 0, live.min, to) : 0,
-    control: d.launch ? 0 : j.sumSku((s) => s.byDistrict[i] ?? 0, live.min, to),
-  }));
-  const lw = j.r.districts.filter((d) => d.launch).reduce((a, d) => a + d.weight, 0);
-  const L = j.sumSku((s) => s.ordersLaunch, live.min, to);
-  const Cn = j.sumSku((s) => s.ordersControl, live.min, to);
-  const lf = lift(L / lw, Cn / (1 - lw));
+  const idx = (name: string) => j.r.districts.findIndex((d) => d.name === name);
+  const ordersIn = (name: string) => j.sumSku((s) => s.byDistrict[idx(name)] ?? 0, live.min, to);
+  // Matched pairs: each launch district against a control district of similar baseline demand.
+  const pairs = matchedPairs(j.r.districts).map(({ launch, control }) => {
+    const treated = ordersIn(launch.name);
+    const baseline = ordersIn(control.name) * (launch.weight / control.weight);
+    return { name: `${launch.name} ↔ ${control.name}`, launch: treated, baseline: Math.round(baseline * 10) / 10, diff: diffVsBaselinePct(treated, baseline) };
+  });
+  const treatedAll = pairs.reduce((a, p) => a + p.launch, 0);
+  const baselineAll = pairs.reduce((a, p) => a + p.baseline, 0);
+  const diff = diffVsBaselinePct(treatedAll, baselineAll);
+  const targetDiff = 100 * (C.T_DEMAND_LIFT.value - 1);
   return (
     <div>
-      <PanelTitle right={<><Chip kind="new" /><Chip kind="existing">Existing Meesho: home & deals placement</Chip></>}>District control: launch vs control</PanelTitle>
+      <PanelTitle right={<><Chip kind="new" /><Chip kind="existing">Existing Meesho: home & deals placement</Chip></>}>Launch vs matched control districts</PanelTitle>
       <div className="h-48">
         <ResponsiveContainer>
-          <BarChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+          <BarChart data={pairs} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
             <CartesianGrid stroke="#F0C9E2" strokeDasharray="3 3" vertical={false} />
-            <XAxis dataKey="name" tick={{ fontSize: 9 }} interval={0} angle={-30} textAnchor="end" height={40} />
+            <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={-20} textAnchor="end" height={46} />
             <YAxis tick={{ fontSize: 10 }} width={28} />
             <Tooltip />
             <Legend wrapperStyle={{ fontSize: 11 }} />
-            <Bar dataKey="launch" name="Sees the launch section" fill="#5C1049" isAnimationActive={false} />
-            <Bar dataKey="control" name="Control (no launch section)" fill="#F0C9E2" isAnimationActive={false} />
+            <Bar dataKey="launch" name="Launch district (sees the launch section)" fill="#5C1049" isAnimationActive={false} />
+            <Bar dataKey="baseline" name="Matched control, scaled to the same baseline" fill="#F0C9E2" isAnimationActive={false} />
           </BarChart>
         </ResponsiveContainer>
       </div>
       <div className="mt-2 grid grid-cols-3 gap-2">
-        <MetricTile label={`Lift so far (to ${dayLabel(to)})`} value={<Num f="lift">{`${num(lf, 2)}×`}</Num>} target={`≥ ${C.T_DEMAND_LIFT.value}×`} status={lf >= C.T_DEMAND_LIFT.value ? 'good' : 'warn'} />
-        <MetricTile label="Launch-district orders" value={L} />
-        <MetricTile label="Control-district orders" value={Cn} />
+        <MetricTile
+          label={`Difference vs baseline (to ${dayLabel(to)})`}
+          value={<Num f="lift">{`${diff >= 0 ? '+' : '−'}${num(Math.abs(diff))}%`}</Num>}
+          target={`≥ +${num(targetDiff)}%`}
+          status={diff >= targetDiff ? 'good' : 'warn'}
+        />
+        <MetricTile label="Launch-district orders" value={treatedAll} caption={`${pairs.length} matched pairs`} />
+        <MetricTile label="Matched-control baseline" value={num(baselineAll)} caption="control orders scaled to the same demand share" />
       </div>
+      <p className="mt-1 text-[11px] text-grey">
+        Pairs: {pairs.map((p) => `${p.name} ${p.diff >= 0 ? '+' : '−'}${num(Math.abs(p.diff))}%`).join(' · ')}
+      </p>
       {j.p.node && (
         <div className="mt-3">
           <div className="mb-1 text-xs font-semibold text-plum">Pack Point pick/pack/QC queue today (Launch 1 node makers; Hiren’s bottle self-ships)</div>
@@ -427,8 +449,8 @@ export function Fault() {
         </div>
       </div>
       <div className="mt-2 grid grid-cols-2 gap-2">
-        <MetricTile label="RTO rate, this SKU" value={<Num f="rtoProbability">{pctText((100 * rto) / Math.max(1, orders), 1)}</Num>} target={`Type 75th pct ${pctText(j.sku.typeRefusalP75Pct)}`} status={(100 * rto) / Math.max(1, orders) > j.sku.typeRefusalP75Pct ? 'warn' : 'good'} />
-        <MetricTile label="Feeds the cost stack" value="Returns buffer" target={`${inr(j.sku.stack.returnsBuffer)}/unit`} />
+        <MetricTile label="RTO rate, this SKU" value={<Num f="rtoProbability">{pctText((100 * rto) / Math.max(1, orders), 1)}</Num>} caption={`type 75th percentile: ${pctText(j.sku.typeRefusalP75Pct)}`} status={(100 * rto) / Math.max(1, orders) > j.sku.typeRefusalP75Pct ? 'warn' : 'good'} />
+        <MetricTile label="Feeds the cost stack" value="Returns buffer" caption={`${inr(j.sku.stack.returnsBuffer)}/unit`} />
       </div>
     </div>
   );
@@ -440,7 +462,20 @@ export function Gate1() {
   return (
     <div>
       <PanelTitle right={<Chip kind="new" />}>Gate 1 · day {g.day}</PanelTitle>
-      <DecisionCard decision={g.decision} gate={`Day-30 rule · ${j.p.name}`} rule={g.rule} inputs={g.inputs.map((i) => ({ label: `${i.label} (target ${i.sense === 'min' ? '≥' : '≤'} ${i.target}${i.unit === '%' ? '%' : i.unit === '×' ? '×' : ''})`, value: fmtInput(i), pass: i.pass }))} />
+      <DecisionCard
+        decision={g.decision}
+        reason={g.decision === 'Invest' ? undefined : g.reason}
+        gate={`Day-30 rule · ${j.p.name}`}
+        rule={g.rule}
+        inputs={g.inputs.map((i) => ({ label: `${i.label} (target ${fmtTarget(i)})`, value: fmtInput(i), pass: i.pass }))}
+      />
+      {j.r.gates.g1rerun && (
+        <div className="mt-2 rounded-lg border-2 border-plum p-2 text-sm" data-testid="gate1-rerun">
+          <span className="font-semibold text-plum">Rerun, day {j.r.gates.g1rerun.day}</span> (after the fix and the next Launch Week):{' '}
+          <strong className={j.r.gates.g1rerun.decision === 'Invest' ? 'text-good' : 'text-warn'}>{j.r.gates.g1rerun.decision}</strong>.{' '}
+          {j.r.gates.g1rerun.inputs.map((i) => `${i.label.toLowerCase()} ${fmtInput(i)}`).join(' · ')}
+        </div>
+      )}
       <p className="mt-2 text-xs text-grey">
         Stick rate = launched SKU orders/day, days {C.STICK_WINDOW_DAYS.value.min}–{C.STICK_WINDOW_DAYS.value.max} ÷ established SKU median ({j.sku.establishedMedianPerDay}/day). Lift = launch vs control districts, live days.
       </p>
@@ -503,7 +538,8 @@ export function Gate2() {
         )}
       </div>
       <DecisionCard
-        decision={g.decision === 'Continue' ? 'Invest' : 'Tighten'}
+        decision={g.decision}
+        reason={g.reason}
         gate={`Gate 2 · day ${g.day} · ${g.decision}`}
         rule={g.rule}
         inputs={[...g.durability, ...g.watch].map((i) => ({ label: i.label, value: fmtInput(i), pass: i.pass }))}
@@ -584,9 +620,13 @@ export function Cohort() {
           <MetricTile key={i.label} label={i.label} value={fmtInput(i)} target={`${i.sense === 'min' ? '≥' : '≤'} ${i.target}${i.unit === '%' ? '%' : ''}`} status={i.pass ? 'good' : 'warn'} />
         ))}
         <MetricTile label="Makers in cohort" value={g.cohort.makers} />
-        <MetricTile label="Makers per KAM case" value={num(g.cohort.makers / Math.max(1, kams))} target="Rises every launch" />
+        <MetricTile
+          label="Makers per category manager"
+          value={<Num f="makersPerManager">{num(makersPerManager(g.cohort.makers))}</Num>}
+          caption={`${categoryManagersNeeded(g.cohort.makers)} manager · ${kams} KAM case${kams === 1 ? '' : 's'} here; rises as cases become coach rules`}
+        />
       </div>
-      <div className={`mt-3 rounded-xl p-3 text-center text-xl font-bold ${g.decision === 'Scale' ? 'bg-good text-white' : 'bg-bad text-white'}`}>{g.decision}</div>
+      <div className={`mt-3 rounded-xl p-3 text-center text-xl font-bold ${g.decision === 'Invest' ? 'bg-good text-white' : g.decision === 'Tighten' ? 'bg-warn text-ink' : 'bg-bad text-white'}`}>{g.decision}</div>
       <p className="mt-1 text-xs text-grey">{g.rule}</p>
     </div>
   );

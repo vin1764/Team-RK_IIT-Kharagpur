@@ -59,7 +59,7 @@ test('Sprint C pages, tabs, scenarios, verify and the judge tour', async ({ page
   // Judge tour: start with the mouse, then keyboard only.
   await page.goto('/#/tour');
   await page.getByTestId('start-tour').click();
-  const steps = 13;
+  const steps = 15;
   for (let i = 1; i <= steps; i++) {
     await expect(page.getByTestId('tour-step')).toHaveText(`${i} / ${steps}`);
     await expect(page.locator('h1')).toHaveCount(1);

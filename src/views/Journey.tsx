@@ -18,6 +18,7 @@ import { StagePill } from '../components/StagePill';
 import { Num } from '../components/FormulaPopover';
 import { useApp } from '../app/store';
 import { inr, num, dayLabel } from '../lib/format';
+import { annualise, daysOfCover } from '../engine/formulas';
 import { CHAPTERS, chapterForDay, focusDay } from '../journey/chapters';
 import { buildCtx, JourneyContext, type JourneyCtx } from '../journey/ctx';
 import { MakerScreen } from '../journey/MakerScreens';
@@ -99,7 +100,11 @@ function JourneyFor({ p, startChapter }: { p: PersonaSpec; startChapter: number 
       id: 'maker',
       label: `Maker · ${p.name.split(' ')[0]}`,
       tone: 'text-orange',
-      node: <MakerPhone scale={focus === 'maker' ? 0.85 : 0.58}>{() => <MakerScreen />}</MakerPhone>,
+      node: (
+        <MakerPhone scale={focus === 'maker' ? 1 : 0.7} fitViewport>
+          {() => <MakerScreen />}
+        </MakerPhone>
+      ),
     },
     {
       id: 'control',
@@ -116,7 +121,7 @@ function JourneyFor({ p, startChapter }: { p: PersonaSpec; startChapter: number 
       label: 'Buyer',
       tone: 'text-pink',
       node: (
-        <BuyerPhone scale={focus === 'buyer' ? 0.85 : 0.58} query={p.skus[0]!.productType.split(' · ')[0]!.toLowerCase()}>
+        <BuyerPhone fitViewport scale={focus === 'buyer' ? 1 : 0.7} query={p.skus[0]!.productType.split(' · ')[0]!.toLowerCase()}>
           <BuyerScreen />
         </BuyerPhone>
       ),
@@ -125,7 +130,7 @@ function JourneyFor({ p, startChapter }: { p: PersonaSpec; startChapter: number 
 
   return (
     <JourneyContext.Provider value={ctx}>
-      <main className="mx-auto w-full max-w-[1800px] flex-1 px-4 py-3 lg:px-6">
+      <main className="mx-auto w-full max-w-[1800px] flex-1 px-4 py-2 lg:px-6">
         <Breadcrumbs trail={[{ label: 'Home', to: '/' }, { label: 'Personas', to: '/personas' }, { label: p.name, to: `/personas/${p.id}` }, { label: 'Journey' }]} />
         <div className="mb-2 flex flex-wrap items-center gap-3">
           <h1 className="rounded-t-2xl rounded-b-md bg-plum px-4 py-1.5 font-display text-2xl font-bold text-white">The journey: {p.name}</h1>
@@ -163,8 +168,8 @@ function JourneyFor({ p, startChapter }: { p: PersonaSpec; startChapter: number 
                 {ch.days} · {ch.stage}
               </span>
             </div>
-            <div className="truncate text-xs text-white/85" title={narration.map((e) => e.text).join(' ')}>
-              {narration.length ? narration.map((e) => `${dayLabel(e.day)}: ${e.text}`).join('  ·  ') : 'Scrub the timeline or use ← → to move through the story.'}
+            <div className="line-clamp-2 text-xs text-white/85" title={narration.map((e) => e.text).join(' ')}>
+              {narration.length ? narration.map((e) => `${dayLabel(e.day)}: ${e.text}`).join('  ·  ') : ch.summary}
             </div>
           </div>
           <button type="button" onClick={() => go(chapter + 1)} disabled={chapter === CHAPTERS.length - 1} aria-label="Next chapter" data-testid="next-chapter" className="rounded-full bg-orange p-1.5 text-ink disabled:opacity-30">
@@ -238,34 +243,60 @@ function JourneyFor({ p, startChapter }: { p: PersonaSpec; startChapter: number 
 
 function Tracker({ ctx }: { ctx: JourneyCtx }) {
   const { r, day, ds, chapter } = ctx;
+  const lit = CHAPTERS[chapter]!.lit;
+  // Before day 0 nothing has been listed, stocked or sold.
+  if (day < 0) {
+    const dash = (labels: string[]) => labels.map((label) => ({ label, value: '—' }));
+    return (
+      <ImpactTracker
+        lit={lit}
+        maker={dash(['Units sold', 'Earned (accrued)', 'Paid out', 'Cash in stock (at cost)', 'Days of cover', 'Monthly run-rate', 'Annualised revenue'])}
+        buyer={dash(['Price vs B', 'Total saved vs B', 'vs reseller price'])}
+        meesho={dash(['Orders', 'Contribution'])}
+      />
+    );
+  }
   const upTo = r.days.filter((d) => d.day <= day);
   const sold = upTo.reduce((a, d) => a + d.orders - d.rto, 0);
   const orders = upTo.reduce((a, d) => a + d.orders, 0);
-  const initial = new Map<string, number>();
-  let avoided = 0;
-  for (const d of upTo)
-    for (const s of d.skus) {
-      if (!s.live) continue;
-      if (!initial.has(s.skuId)) initial.set(s.skuId, s.rtoProbability);
-      avoided += s.orders * (initial.get(s.skuId)! - s.rtoProbability);
-    }
+  const last30 = upTo.filter((d) => d.day > day - C.DAYS_PER_MONTH.value);
+  const units30 = last30.reduce((a, d) => a + d.orders, 0);
+  const revenue30 = last30.reduce((a, d) => a + d.skus.reduce((b, s) => b + s.orders * s.price, 0), 0);
+  const perDay7 = upTo.filter((d) => d.day > day - C.RUN_RATE_WINDOW_DAYS.value).reduce((a, d) => a + d.orders, 0) / C.RUN_RATE_WINDOW_DAYS.value;
+  const cover = daysOfCover(ds.onHand, perDay7);
+  const live = ctx.skuDay.live;
+  const net = ds.money.netCashCum;
   return (
     <ImpactTracker
-      lit={CHAPTERS[chapter]!.lit}
+      lit={lit}
       maker={[
         { label: 'Units sold', value: num(sold) },
-        { label: 'Take-home', value: <Num f="takeHome">{inr(ds.money.takeHomeCum)}</Num> },
-        { label: 'Cash in stock', value: inr(ds.money.cashInStock) },
+        { label: 'Earned (accrued)', value: <Num f="takeHome">{inr(Math.max(0, ds.money.takeHomeCum))}</Num> },
+        { label: `Paid out (${C.PAYMENT_CYCLE_DAYS.value} days after delivery)`, value: inr(ds.money.payoutsCum) },
+        { label: 'Cash in stock (at cost)', value: inr(ds.money.cashInStock) },
+        {
+          label: 'Net cash position',
+          value: (
+            <span
+              className={net < 0 ? 'text-grey' : ''}
+              title="Cash in (payouts, stock recovered, claims) minus cash out (stock made, packing, fees, GST remitted). Negative while stock is built ahead of payouts; the stock is still an asset at cost."
+            >
+              {inr(net)} ⓘ
+            </span>
+          ),
+        },
+        { label: 'Days of cover', value: cover === null ? '—' : `${num(cover, 1)} days` },
+        { label: 'Monthly run-rate (last 30 days)', value: `${num(units30)} units` },
+        { label: 'Annualised revenue', value: <Num f="annualise">{inr(annualise(revenue30))}</Num> },
       ]}
       buyer={[
-        { label: 'Price vs B', value: <Num f="priceBand">{`${inr(ctx.skuDay.price)} vs ${inr(ctx.skuDay.B)}`}</Num> },
+        { label: 'Price vs B', value: live ? <Num f="priceBand">{`${inr(ctx.skuDay.price)} vs ${inr(ctx.skuDay.B)}`}</Num> : '—' },
         { label: 'Total saved vs B', value: <Num f="priceDropDelivered">{inr(ds.buyerSavedCum)}</Num> },
         { label: 'vs reseller price', value: inr(ds.buyerSavedVsResellerCum) },
       ]}
       meesho={[
         { label: 'Orders', value: num(orders) },
         { label: 'Contribution', value: inr(ds.meeshoContributionCum) },
-        { label: 'RTOs avoided', value: <Num f="rtoProbability">{num(avoided, 1)}</Num> },
       ]}
     />
   );

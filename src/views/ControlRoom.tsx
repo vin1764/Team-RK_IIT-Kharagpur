@@ -19,7 +19,7 @@ import { SectionPage } from './SectionPage';
 const TABS = ['Demand engine', 'Ledger', 'Pack Point', 'Launch', 'Coach & KAM', 'Cohort'] as const;
 type Tab = (typeof TABS)[number];
 
-function PackPoint() {
+function PackPoint({ asOf }: { asOf: number }) {
   const [makers, setMakers] = useState(C.PP_REFERENCE_MAKERS.value);
   const cost = packPointCost(makers);
   const fee = packPointFeeTier(makers);
@@ -29,7 +29,7 @@ function PackPoint() {
   const pnl = packPointPnl(makers);
   const breakEven = packPointBreakEvenMakers();
   const ppDays = hero.days.flatMap((d) => d.skus.filter((s) => s.skuId === 'casserole-1500' && s.live).map((s) => ({ day: d.day, s })));
-  const queue = ppDays.slice(-7);
+  const queue = ppDays.filter((x) => x.day <= asOf).slice(-7);
   return (
     <div className="space-y-4">
       <PanelTitle right={<Chip kind="partner" />}>Cluster Pack Point · fee by makers pooled</PanelTitle>
@@ -55,12 +55,12 @@ function PackPoint() {
       </p>
       <PackPointFlow makers={makers} />
       <div className="grid gap-3 md:grid-cols-4">
-        <MetricTile label="Partner profit / month" value={<Num f="packPointPnl">{inr(pnl.profit)}</Num>} target={`margin ${pctText(pnl.marginPct, 1)}`} status={pnl.profit >= 0 ? 'good' : 'bad'} />
-        <MetricTile label="Break-even node size" value={`${breakEven ?? '—'} makers`} target="at the published fee" />
+        <MetricTile label="Partner profit / month" value={<Num f="packPointPnl">{inr(pnl.profit)}</Num>} caption={`margin ${pctText(pnl.marginPct, 1)}`} status={pnl.profit >= 0 ? 'good' : 'bad'} />
+        <MetricTile label="Break-even node size" value={`${breakEven ?? '—'} makers`} caption="at the published fee" />
         <MetricTile
           label="Cost/order vs Shiprocket"
           value={`${inr(cost.costPerOrder, 1)} vs ${inr(C.PP_SHIPROCKET_BENCHMARK.value)}`}
-          target="published 3PL price, cross-check"
+          caption="published 3PL price, cross-check"
           status={cost.costPerOrder <= C.PP_SHIPROCKET_BENCHMARK.value ? 'good' : 'warn'}
         />
         <MetricTile
@@ -150,11 +150,11 @@ function PackPoint() {
   );
 }
 
-function CoachKam() {
+function CoachKam({ asOf }: { asOf: number }) {
   const seed = useApp((s) => s.seed);
   const rows = PERSONA_SPECS.flatMap((p) =>
     runSim({ personaId: p.id, seed })
-      .events.filter((e) => ['coachNudge', 'fixRecheck', 'kamCase', 'newRule'].includes(e.kind))
+      .events.filter((e) => ['coachNudge', 'fixRecheck', 'kamCase', 'newRule'].includes(e.kind) && e.day <= asOf)
       .map((e) => ({ p, e })),
   ).sort((a, b) => a.e.day - b.e.day);
   const ladder = ['Auto metric watch', 'Coach nudge', 'One-tap fix', `Re-check after ${C.FIX_RECHECK_DAYS.value} days`, 'KAM only if a fix fails twice'];
@@ -191,9 +191,18 @@ function CoachKam() {
   );
 }
 
+function NotYet({ what, day }: { what: string; day: number }) {
+  return (
+    <div className="rounded-xl border-2 border-dashed border-line p-4 text-sm text-grey">
+      {what} runs on {dayLabel(day)}. Move the day selector to {dayLabel(day)} or later to see it.
+    </div>
+  );
+}
+
 export default function ControlRoom() {
   const [tab, setTab] = useState<Tab>('Demand engine');
   const [pid, setPid] = useState<PersonaId>('hiren');
+  const [asOf, setAsOf] = useState(C.TIMELINE_DAYS.value.max);
   const p = PERSONA_SPECS.find((x) => x.id === pid)!;
   const { base, cf } = usePersonaRuns(pid);
   const ctxAt = useMemo(() => (chapter: number, day: number) => buildCtx(p, base, cf, chapter, day), [p, base, cf]);
@@ -217,38 +226,67 @@ export default function ControlRoom() {
           ))}
         </div>
       </div>
+      <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-line bg-white px-3 py-2">
+        <span className="rounded-full bg-plum px-3 py-1 text-sm font-bold text-white" data-testid="as-of">
+          As of {dayLabel(asOf)}
+        </span>
+        <input
+          type="range"
+          min={C.TIMELINE_DAYS.value.min}
+          max={C.TIMELINE_DAYS.value.max}
+          value={asOf}
+          onChange={(e) => setAsOf(Number(e.target.value))}
+          aria-label="Control room day"
+          className="min-w-[12rem] flex-1 accent-plum"
+        />
+        <div className="flex gap-1">
+          {[C.CHAPTER_DAYS.value[0]!, 0, ...C.GATE_DAYS.value].map((d) => (
+            <button key={d} type="button" onClick={() => setAsOf(d)} className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${asOf === d ? 'border-plum bg-plum text-white' : 'border-line text-plum'}`}>
+              {dayLabel(d)}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="rounded-2xl border-2 border-dashed border-plum/50 bg-white p-4 text-sm">
         {tab === 'Demand engine' && (
-          <JourneyContext.Provider value={ctxAt(0, C.TIMELINE_DAYS.value.min)}>
+          <JourneyContext.Provider value={ctxAt(0, asOf)}>
             <DemandEngine />
           </JourneyContext.Provider>
         )}
         {tab === 'Ledger' && (
-          <JourneyContext.Provider value={ctxAt(4, C.CHAPTER_DAYS.value[4]!)}>
+          <JourneyContext.Provider value={ctxAt(4, asOf)}>
             <Ledger />
           </JourneyContext.Provider>
         )}
-        {tab === 'Pack Point' && <PackPoint />}
+        {tab === 'Pack Point' && <PackPoint asOf={asOf} />}
         {tab === 'Launch' && (
           <div className="grid gap-6 xl:grid-cols-2">
-            <JourneyContext.Provider value={ctxAt(7, live.max)}>
+            <JourneyContext.Provider value={ctxAt(7, Math.max(asOf, live.min))}>
               <Districts />
             </JourneyContext.Provider>
-            <JourneyContext.Provider value={ctxAt(9, C.GATE_DAYS.value[0]!)}>
-              <Gate1 />
-            </JourneyContext.Provider>
+            {asOf >= C.GATE_DAYS.value[0]! ? (
+              <JourneyContext.Provider value={ctxAt(9, asOf)}>
+                <Gate1 />
+              </JourneyContext.Provider>
+            ) : (
+              <NotYet what="Gate 1" day={C.GATE_DAYS.value[0]!} />
+            )}
             <div className="xl:col-span-2">
-              <JourneyContext.Provider value={ctxAt(8, C.STICK_WINDOW_DAYS.value.max)}>
+              <JourneyContext.Provider value={ctxAt(8, Math.max(asOf, C.CHAPTER_DAYS.value[8]!))}>
                 <Fault />
               </JourneyContext.Provider>
             </div>
           </div>
         )}
-        {tab === 'Coach & KAM' && <CoachKam />}
+        {tab === 'Coach & KAM' && <CoachKam asOf={asOf} />}
         {tab === 'Cohort' && (
-          <JourneyContext.Provider value={ctxAt(13, C.GATE_DAYS.value[2]!)}>
-            <Cohort />
-          </JourneyContext.Provider>
+          asOf >= C.GATE_DAYS.value[2]! ? (
+            <JourneyContext.Provider value={ctxAt(13, asOf)}>
+              <Cohort />
+            </JourneyContext.Provider>
+          ) : (
+            <NotYet what="Gate 3 (cohort metrics vs targets)" day={C.GATE_DAYS.value[2]!} />
+          )
         )}
       </div>
     </SectionPage>
