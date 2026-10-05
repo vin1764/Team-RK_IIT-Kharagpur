@@ -9,8 +9,9 @@ export function TopNav() {
   return (
     <header className="sticky top-0 z-40 bg-plum text-white shadow-md">
       <div className="mx-auto flex max-w-[1800px] items-center justify-between gap-4 px-4 py-2">
-        <Go to="/" nav className="flex items-baseline gap-2" label="Home">
+        <Go to="/" className="flex items-baseline gap-2" label="Home: choose a surface">
           <span className="font-display text-xl font-bold">Meesho C2M</span>
+          <span className="rounded-full bg-white/15 px-2 py-0.5 text-xs">Case notes</span>
           <span className="hidden text-xs text-white/70 md:inline">Team RK · IIT Kharagpur</span>
         </Go>
         <button

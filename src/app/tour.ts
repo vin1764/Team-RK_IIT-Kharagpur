@@ -8,7 +8,7 @@ export interface TourStep {
 const j = (ch: number) => `/journey/hiren?ch=${ch}`;
 
 export const TOUR: TourStep[] = [
-  { to: '/', title: 'Choose a maker; the pitch and the formula', caption: 'Three makers (offline, online elsewhere, churned) each open their own journey. C2M price contribution = makers × share active at day 30 × orders per maker × price drop per order × share retained at day 90. Each term has an owner.' },
+  { to: '/notes', title: 'Choose a maker; the pitch and the formula', caption: 'Three makers (offline, online elsewhere, churned) each open their own journey. C2M price contribution = makers × share active at day 30 × orders per maker × price drop per order × share retained at day 90. Each term has an owner.' },
   { to: '/problem', title: 'The problem, and where each PS question is answered', caption: 'On a ₹265 order the middlemen take ₹72. Two problems: makers don’t come, and those who come don’t stay.' },
   { to: '/categories', title: 'Which categories, and which not', caption: 'Drag the weights: Apparel rises when returns matter less, but still fails the buyer tests. Scale ≠ cost edge; ownership is.' },
   { to: j(0), title: 'Journey · Meesho finds the gap', caption: 'The demand engine sizes the open gap and computes benchmark B from 10 listings, with exclusions.' },

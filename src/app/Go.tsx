@@ -12,6 +12,7 @@ export function Go({
   next = false,
   nav = false,
   label,
+  onClick,
 }: {
   to: string;
   children: ReactNode;
@@ -20,12 +21,14 @@ export function Go({
   /** Render as a NavLink (active styling via aria-current). */
   nav?: boolean;
   label?: string;
+  onClick?: () => void;
 }) {
   const props = {
     to,
     'data-nav': to,
     ...(next ? { 'data-next': true } : {}),
     'aria-label': label,
+    onClick,
   };
   return nav ? (
     <NavLink {...props} end={to === '/'} className={className}>

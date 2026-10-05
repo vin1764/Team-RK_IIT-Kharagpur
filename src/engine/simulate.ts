@@ -160,6 +160,10 @@ export interface SkuDay {
   rtoProbability: number;
   /** Returns arriving back today, graded: A as new, B after repack (Pack Point only), C write-off. */
   grades: { A: number; B: number; C: number };
+  /** Customer returns physically arriving back today, by reason. */
+  returnsArrived: Record<ReturnReason, number>;
+  /** RTO units arriving back today. */
+  rtoArrived: number;
 }
 
 export interface DayState {
@@ -847,6 +851,7 @@ function run(base: PersonaSpec, options: SimOptions): SimResult {
             kind: 'stockIn',
             actor: sp.fulfilment === 'packPoint' ? 'meesho' : 'maker',
             skuId: sp.id,
+            data: { units: a.v.units, packPoint: sp.fulfilment === 'packPoint' },
             text:
               sp.fulfilment === 'packPoint'
                 ? `Pack Point inbound: ${a.v.units} × “${sp.name}” counted and weighed (${sp.weightGrams} g each).`
@@ -854,11 +859,14 @@ function run(base: PersonaSpec, options: SimOptions): SimResult {
           });
         } else {
           if (s.primary && secondLotDay === null) secondLotDay = d;
-          emit({ day: d, kind: 'batchArrived', actor: 'maker', skuId: sp.id, text: `Batch of ${a.v.units} × “${sp.name}” arrives${a.v.fixed ? ' with the product fix' : ''}.` });
+          emit({ day: d, kind: 'batchArrived', actor: 'maker', skuId: sp.id, data: { units: a.v.units, packPoint: sp.fulfilment === 'packPoint' }, text: `Batch of ${a.v.units} × “${sp.name}” arrives${a.v.fixed ? ' with the product fix' : ''}.` });
         }
       }
       s.inbound = s.inbound.filter((x) => x.day !== d);
+      let rtoArrived = 0;
+      const returnsArrived: Record<ReturnReason, number> = { product: 0, expectation: 0, size: 0, swap: 0 };
       for (const r of s.rtoBack.filter((x) => x.day === d)) {
+        rtoArrived += r.v;
         addLot(s, d, r.v, s.productFixApplied || !hasTarnish(sp));
         // The packing on a refused parcel is lost (no shipping charge when dispatched on time).
         if (sp.fulfilment === 'selfShip') takeHomeToday -= r.v * sp.stack.packaging;
@@ -866,6 +874,7 @@ function run(base: PersonaSpec, options: SimOptions): SimResult {
       s.rtoBack = s.rtoBack.filter((x) => x.day !== d);
       const grades = { A: 0, B: 0, C: 0 };
       for (const r of s.returnsBack.filter((x) => x.day === d)) {
+        returnsArrived[r.v.reason] += r.v.n;
         if (r.v.reason === 'expectation' || r.v.reason === 'size') {
           // Weighed against dispatch and graded; at the node some need a repack (grade B).
           const b = sp.fulfilment === 'packPoint' ? Math.min(r.v.n, carry(s, 'grade-b').take(gradeShareB(r.v.n))) : 0;
@@ -1071,6 +1080,8 @@ function run(base: PersonaSpec, options: SimOptions): SimResult {
         codSharePct: s.codSharePct,
         rtoProbability: rtoP,
         grades,
+        returnsArrived,
+        rtoArrived,
       });
 
       if (d === s.liveFrom) {

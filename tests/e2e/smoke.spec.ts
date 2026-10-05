@@ -8,6 +8,8 @@ test('single file from disk: home, judge tour (14 steps), journey', async ({ pag
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
   const file = pathToFileURL(resolve('dist-single/index.html')).href;
   await page.goto(file);
+  await expect(page.locator('h1')).toContainText('Meesho Factory');
+  await page.goto(`${file}#/notes`);
   await expect(page.locator('h1')).toContainText('Meesho C2M');
   await page.getByTestId('header-start-tour').click();
   for (let i = 1; i <= 13; i++) {
@@ -16,8 +18,8 @@ test('single file from disk: home, judge tour (14 steps), journey', async ({ pag
     await page.keyboard.press('ArrowRight');
   }
   await expect(page.getByTestId('tour-step')).toHaveCount(0);
-  // Home → choose a maker → that maker's journey.
-  await page.goto(file);
+  // Case notes → choose a maker → that maker's journey.
+  await page.goto(`${file}#/notes`);
   await page.getByRole('link', { name: 'See Sunita Das’s journey' }).click();
   await expect(page.locator('h1')).toHaveText('The journey: Sunita Das');
   await page.goto(`${file}#/journey/hiren?ch=10`);

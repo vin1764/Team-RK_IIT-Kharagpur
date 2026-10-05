@@ -34,7 +34,7 @@ export function PageShell({
   hideSummary?: boolean;
 }) {
   const heading = title ?? def.title;
-  const nextLink = next ?? { to: def.next, label: def.next === '/' ? 'Home' : titleOf(def.next) };
+  const nextLink = next ?? { to: def.next, label: def.next === '/notes' ? 'Case notes' : titleOf(def.next) };
 
   useEffect(() => {
     document.title = `${heading} · Meesho C2M prototype`;

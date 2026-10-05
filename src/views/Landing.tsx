@@ -38,7 +38,7 @@ function HeroPhone({ perMonth, orders }: { perMonth: number; orders: number }) {
 }
 
 export default function Landing() {
-  const def = page('/');
+  const def = page('/notes');
   const setTourStep = useApp((s) => s.setTourStep);
   const hero = runSim({ personaId: 'hiren' });
   const d90 = hero.days[hero.days.length - 1]!;

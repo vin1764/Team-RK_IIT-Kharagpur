@@ -89,6 +89,8 @@ export interface SkuSpec {
 
 export interface PersonaSpec extends PersonaSummary {
   launchNo: 1 | 2;
+  /** Which monthly Factory Launch Week the maker joins in the MVP (display). */
+  launchWeekNo: number;
   /** Seller-level quality score (share of 1–2★ ratings) inherited by unrated listings. */
   sellerQualityScore?: number;
   skus: SkuSpec[];
@@ -321,6 +323,7 @@ export const PERSONA_SPECS: PersonaSpec[] = [
     heroSku: '1 L stainless steel bottle',
     isHero: true,
     launchNo: 1,
+    launchWeekNo: 2,
     skus: [bottle, sipper],
     switchOptions: [casserole, lunchBox],
     node: {
@@ -340,6 +343,7 @@ export const PERSONA_SPECS: PersonaSpec[] = [
     heroSku: 'Brass-finish steel serving bowl set',
     isHero: false,
     launchNo: 1,
+    launchWeekNo: 1,
     skus: [bowls],
     switchOptions: [],
   },
@@ -354,6 +358,7 @@ export const PERSONA_SPECS: PersonaSpec[] = [
     heroSku: 'Imitation jewellery set',
     isHero: false,
     launchNo: 2,
+    launchWeekNo: 2,
     sellerQualityScore: 0.18,
     winBack: { views: 2400, clicks: 38, likelyReason: 'Main photo', refusalPct: 31, categoryRefusalPct: 22, listingsBefore: '20–30' },
     skus: [jewellery],

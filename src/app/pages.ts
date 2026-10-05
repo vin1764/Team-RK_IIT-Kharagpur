@@ -19,8 +19,8 @@ export interface PageDef {
 
 export const PAGES: PageDef[] = [
   {
-    path: '/',
-    nav: 'Home',
+    path: '/notes',
+    nav: 'Case notes',
     title: 'Meesho C2M: factories to buyers',
     summary: 'The pitch, the organising formula, the three makers and a map of where each PS question is answered.',
     contains: ['One-line pitch', 'The C2M formula', 'Three persona cards', '4-minute judge tour', 'Tiles to every section', '"Answers the PS" map'],
@@ -85,7 +85,7 @@ export const PAGES: PageDef[] = [
     summary: 'Day-90 results per persona, the formula with real values, and what it looks like at scale.',
     contains: ['Day-90 scorecard per persona', 'The formula with values', 'Year-one ramp and scale target', 'Year-2 view'],
     ps: ['Q3', 'Q4'],
-    next: '/',
+    next: '/notes',
     inNav: true,
   },
 ];
@@ -97,7 +97,7 @@ export const page = (path: string): PageDef => {
 };
 
 /** Pages built so far. Unfinished pages keep their route (no dead links) but stay out of the nav and tiles. */
-export const READY = new Set(['/', '/problem', '/categories', '/journey/:id', '/control-room', '/economics', '/impact']);
+export const READY = new Set(['/notes', '/problem', '/categories', '/journey/:id', '/control-room', '/economics', '/impact']);
 
 export const NAV_PAGES = PAGES.filter((p) => p.inNav && READY.has(p.path));
 
@@ -105,7 +105,7 @@ export const NAV_PAGES = PAGES.filter((p) => p.inNav && READY.has(p.path));
 export const PS_MAP: Record<'Q1' | 'Q2' | 'Q3' | 'Q4', { label: string; to: string }[]> = {
   Q1: [{ label: 'Category Lab', to: '/categories' }],
   Q2: [
-    { label: 'Choose a maker (home)', to: '/' },
+    { label: 'Try the maker app', to: '/app' },
     { label: 'Onboarding in the journey', to: '/journey/hiren' },
   ],
   Q3: [
